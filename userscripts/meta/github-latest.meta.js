@@ -1,8 +1,8 @@
 // ==UserScript==
-// @name          Readd releases post Github Refined change
+// @name          GitHub Latest
 // @namespace     https://github.com/StylusThemes/Userscripts
-// @description   Readds releases post Github Refined change
+// @description   Always keep an eye on the latest activity of your favorite projects
 // @include       https://github.com/*
-// @version       2.0
+// @version       1.0
 // @grant         none
 // ==/UserScript==

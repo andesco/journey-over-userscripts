@@ -1,8 +1,10 @@
 // ==UserScript==
-// @name     Readd releases post Github Refined change
-// @version  2
-// @grant    none
-// @include  https://github.com/*
+// @name          Readd releases post Github Refined change
+// @namespace     https://github.com/StylusThemes/Userscripts
+// @description   Readds releases post Github Refined change
+// @include       https://github.com/*
+// @version       2.0
+// @grant         none
 // ==/UserScript==
 
 //Check if it's main repo page. Works most of the time (except when ending in /, which doesn't happen by default)
@@ -13,7 +15,7 @@ window.addEventListener("load", function(event) {
 });
 
 window.addEventListener("pjax:end", function(event) {
- 	restoreReleases();
+  restoreReleases();
 });
 
 function restoreReleases() {
@@ -22,7 +24,7 @@ function restoreReleases() {
       return;
     }
     console.log('Readding releases panel (removed by Github Refined)');
-  	const sideReleases = document.querySelector('.BorderGrid-cell a[href$="/releases"]');
-  	sideReleases.closest('.BorderGrid-row').hidden = false;
+    const sideReleases = document.querySelector('.BorderGrid-cell a[href$="/releases"]');
+    sideReleases.closest('.BorderGrid-row').hidden = false;
   }, 1);
 }

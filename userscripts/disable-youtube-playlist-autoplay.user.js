@@ -1,9 +1,11 @@
 // ==UserScript==
-// @name        Disable Youtube playlist autoplay
-// @include     http://*.youtube.com/*
-// @include     https://*.youtube.com/*
-// @version     1
-// @grant       none
+// @name          Disable Youtube playlist autoplay
+// @namespace     https://github.com/StylusThemes/Userscripts
+// @description   Disables Youtube playlist autoplay
+// @include       http://*.youtube.com/*
+// @include       https://*.youtube.com/*
+// @version       1.0
+// @grant         none
 // ==/UserScript==
 
 (new MutationObserver(disableAutoplay)).observe(document.querySelector('ytd-app'), {childList: true, subtree: false});

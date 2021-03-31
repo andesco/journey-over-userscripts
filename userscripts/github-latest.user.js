@@ -3,7 +3,7 @@
 // @namespace     https://github.com/StylusThemes/Userscripts
 // @description   Always keep an eye on the latest activity of your favorite projects
 // @include       https://github.com/*
-// @version       1.0
+// @version       1.1
 // @grant         none
 // ==/UserScript==
 
@@ -19,7 +19,7 @@ function addLatestButton() {
     var list_item_issues_copy = reponav_list.children[1].cloneNode(true);
     list_item_issues_copy.style.marginLeft = "auto";
 
-    var button = list_item_issues_copy;
+    var button = list_item_issues_copy.firstElementChild;
     button.id = "latest-button"
     button.href += "?sort=updated";
     button.style.float = "right";

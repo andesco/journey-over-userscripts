@@ -3,7 +3,7 @@
 // @namespace     https://github.com/StylusThemes/Userscripts
 // @description   Always keep an eye on the latest activity of your favorite projects
 // @include       https://github.com/*
-// @version       1.3
+// @version       1.4
 // @grant         none
 // ==/UserScript==
 
@@ -21,7 +21,7 @@ function addLatestButton() {
 
     var button = list_item_issues_copy.firstElementChild;
     button.id = "latest-button"
-    button.href += "?sort=updated";
+    button.href += "?q=sort%3Aupdated-desc";
     button.style.float = "right";
 
     // unselect

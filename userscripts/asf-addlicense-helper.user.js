@@ -124,11 +124,8 @@ if (/steamgifts\.com/.test(location.href)) {
 }
 
 if (/reddit\.com/.test(location.href)) {
-  // Reddit does some late styling that will overwrite our changes, so we have to load even later
-  //setTimeout(function(){
   const ps = document.querySelectorAll(".md-container-small, .md-container");
   findCommands(ps);
-  //}, 100);
 }
 
 if (/steam\.madjoki\.com\/apps\/free/.test(location.href)) {

@@ -2,8 +2,8 @@
 // @name          GitHub Latest
 // @namespace     https://github.com/StylusThemes/Userscripts
 // @description   Always keep an eye on the latest activity of your favorite projects
-// @include       https://github.com/*
-// @version       1.4
+// @match         *://github.com/*
+// @version       1.5
 // @grant         none
 // ==/UserScript==
 
@@ -51,5 +51,6 @@ function addLatestButton() {
 
 addLatestButton();
 
-// GitHub uses pjax to navigate between documents
-document.addEventListener('pjax:success', addLatestButton);
+// GitHub uses usage of https://github.com/defunkt/jquery-pjax#events and https://turbo.hotwired.dev/reference/events.
+// https://github.com/refined-github/refined-github/issues/5719
+document.addEventListener('turbo:render', addLatestButton);

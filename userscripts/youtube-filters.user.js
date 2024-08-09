@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          YouTube Filters
-// @version       1.0
-// @description   Filters YouTube videos by duration. Hides videos less than 2 minutes long, excluding channel video tabs.
+// @version       1.1
+// @description   Filters YouTube videos by duration and age. Hides videos less than 2 minutes long or older than a specified number of years, excluding channel video tabs.
 // @author        JourneyOver
 // @icon          https://i.imgur.com/1RYzIiT.png
 // @match         *://*.youtube.com/*
@@ -13,68 +13,80 @@
 (function() {
   'use strict';
 
-  // Function to check if a video duration is less than 2 minutes and not 0 seconds
-  function isShortVideo(duration) {
-      // Assuming duration is in seconds
-      return duration < 120 && duration !== 0; // Change value here (the 120)
+  const MIN_DURATION_SECONDS = 120; // Minimum duration of videos in seconds
+  const AGE_THRESHOLD_YEARS = 4; // Maximum age of videos in years
+
+  // Function to convert video duration from HH:MM:SS or MM:SS to seconds
+  function convertDurationToSeconds(durationText) {
+      const timeParts = durationText.split(':').reverse();
+      let seconds = 0;
+
+      timeParts.forEach((part, index) => {
+          seconds += parseInt(part, 10) * Math.pow(60, index);
+      });
+
+      return seconds;
   }
 
-  // Function to get the title of a video element
-  function getVideoTitle(video) {
-      var titleElement = video.querySelector('#video-title');
-      return titleElement ? titleElement.innerText.trim() : null;
+  // Function to determine if a video is short (less than MIN_DURATION_SECONDS) or not
+  function isShortVideo(durationInSeconds) {
+      return durationInSeconds < MIN_DURATION_SECONDS && durationInSeconds !== 0;
   }
 
-  // Function to filter out short videos
+  // Function to extract video age in years from the metadata
+  function getVideoAgeInYears(video) {
+      const ageText = Array.from(video.querySelectorAll('span.inline-metadata-item.style-scope.ytd-video-meta-block'))
+          .map(el => el.innerText.trim())
+          .find(text => text.toLowerCase().includes("ago"));
+
+      if (ageText) {
+          const yearsMatch = ageText.match(/(\d+)\s+(year|years)\s+ago/i);
+          return yearsMatch ? parseInt(yearsMatch[1], 10) : 0;
+      }
+      return 0;
+  }
+
+  // Function to process and filter videos based on duration and age
   function filterVideos() {
-        // Check if we are on a channel page by looking at URL or specific elements
-        var url = window.location.href;
-        var isChannelPage = url.includes('@') && url.includes('/videos');
+      // Check if we are on a channel page by looking at URL or specific elements
+      const url = window.location.href;
+      const isChannelPage = url.includes('@') && url.includes('/videos');
 
-        if (isChannelPage) {
-            //console.log("Skipping filtering on channel page.");
-            return; // Exit if we are on a channel's video tab
-        }
+      if (isChannelPage) {
+          //console.log("Skipping filtering on channel page.");
+          return; // Exit if we are on a channel's video tab
+      }
 
-      // Get all video elements on the page
-      var videos = document.querySelectorAll('ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-playlist-panel-video-renderer');
+      const videoSelectors = 'ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-playlist-panel-video-renderer';
+      const videos = document.querySelectorAll(videoSelectors);
 
-      videos.forEach(function(video) {
-          // Get the title of each video
-          var title = getVideoTitle(video);
+      videos.forEach(video => {
+          const title = getVideoTitle(video);
+          const durationElement = video.querySelector('span.ytd-thumbnail-overlay-time-status-renderer');
+          const durationText = durationElement ? durationElement.innerText.trim() : '';
+          const durationInSeconds = convertDurationToSeconds(durationText);
+          const videoAgeInYears = getVideoAgeInYears(video);
 
-          // Get the duration of each video
-          var durationElement = video.querySelector('span.ytd-thumbnail-overlay-time-status-renderer');
-          var durationText = durationElement ? durationElement.innerText.trim() : '';
-
-          if (title && durationText) {
-              // Extract duration in seconds from the element text
-              var durationArray = durationText.split(':');
-              var durationInSeconds = 0;
-              // Convert duration to seconds
-              if (durationArray.length === 3) {
-                  durationInSeconds += parseInt(durationArray[0]) * 3600;
-                  durationInSeconds += parseInt(durationArray[1]) * 60;
-                  durationInSeconds += parseInt(durationArray[2]);
-              } else if (durationArray.length === 2) {
-                  durationInSeconds += parseInt(durationArray[0]) * 60;
-                  durationInSeconds += parseInt(durationArray[1]);
-              } else {
-                  durationInSeconds += parseInt(durationArray[0]);
-              }
-              // Check if the video is short and not 0 seconds
-              if (isShortVideo(durationInSeconds)) {
-                  // Log the title and duration of the removed video with custom colors
-                  console.log("%cDuration Removal: %c" + title + " %c(" + durationText + ")", "color: red;", "color: orange;", "color: deepskyblue;");
-                  // Remove the parent element of the video
-                  video.parentNode.removeChild(video);
-              }
+          if (isShortVideo(durationInSeconds)) {
+              console.log(`%cDuration Removal: %c"${title}" %c(${durationText})`, "color: red;", "color: orange;", "color: deepskyblue;");
+              video.parentNode.removeChild(video);
+          } else if (videoAgeInYears >= AGE_THRESHOLD_YEARS) {
+              console.log(`%cAge Removal: %c"${title}" %c(${videoAgeInYears} years ago)`, "color: red;", "color: orange;", "color: deepskyblue;");
+              video.parentNode.removeChild(video);
           }
       });
   }
 
-  // Run the filter when the page loads and when new content is added (AJAX)
-  var observer = new MutationObserver(filterVideos);
+  // Function to get the video title
+  function getVideoTitle(video) {
+      const titleElement = video.querySelector('#video-title');
+      return titleElement ? titleElement.innerText.trim() : '';
+  }
+
+  // Create a MutationObserver to detect and handle new videos added dynamically
+  const observer = new MutationObserver(filterVideos);
   observer.observe(document.body, { childList: true, subtree: true });
+
+  // Initial filter run
   filterVideos();
 })();

@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          YouTube Filters
-// @version       1.2
-// @description   Filters YouTube videos by duration and age. Hides videos less than 2 minutes long or older than a specified number of years, excluding channel video tabs.
+// @version       1.3
+// @description   Filters YouTube videos by duration and age. Hides videos less than X minutes long or older than a specified number of years, excluding channel video tabs.
 // @author        JourneyOver
 // @icon          https://i.imgur.com/1RYzIiT.png
 // @match         *://*.youtube.com/*
@@ -15,6 +15,7 @@
 
   const MIN_DURATION_SECONDS = 120; // Minimum duration of videos in seconds
   const AGE_THRESHOLD_YEARS = 4; // Maximum age of videos in years
+  const processedVideos = new Set(); // To keep track of processed videos
 
   // Function to convert video duration from HH:MM:SS or MM:SS to seconds
   function convertDurationToSeconds(durationText) {
@@ -64,6 +65,8 @@
     const videos = document.querySelectorAll(videoSelectors);
 
     videos.forEach(video => {
+      if (processedVideos.has(video)) return; // Skip if already processed
+
       const title = getVideoTitle(video);
       const durationElement = video.querySelector('span.ytd-thumbnail-overlay-time-status-renderer');
       const durationText = durationElement ? durationElement.innerText.trim() : '';
@@ -72,10 +75,12 @@
 
       if (isShortVideo(durationInSeconds)) {
         console.log(`%cDuration Removal: %c"${title}" %c(${durationText})`, "color: red;", "color: orange;", "color: deepskyblue;");
-        video.parentNode.removeChild(video);
+        video.style.display = 'none'; // Hide short videos
+        processedVideos.add(video); // Mark as processed
       } else if (videoAgeInYears >= AGE_THRESHOLD_YEARS) {
         console.log(`%cAge Removal: %c"${title}" %c(${videoAgeText})`, "color: red;", "color: orange;", "color: deepskyblue;");
-        video.parentNode.removeChild(video);
+        video.style.display = 'none'; // Hide old videos
+        processedVideos.add(video); // Mark as processed
       }
     });
   }

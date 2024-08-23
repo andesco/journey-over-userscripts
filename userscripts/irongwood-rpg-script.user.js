@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Ironwood RPG Scripts
-// @version      1.0
+// @version      1.1
 // @description  Calculate time remaining for active skill exp based on current exp and action stats, and display it on the skill page in Ironwood RPG
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=ironwoodrpg.com
 // @match        *://ironwoodrpg.com/*
@@ -82,7 +82,7 @@ const parseActiveSkillExp = () => {
     }
 
     const sanitizedExpString = expElement.textContent.trim().toLowerCase();
-    const [currentExpString,,requiredExpString,] = sanitizedExpString.split(" ");
+    const [currentExpString, , requiredExpString,] = sanitizedExpString.split(" ");
     const current = Number(currentExpString.replaceAll(",", ""));
     const required = Number(requiredExpString.replaceAll(",", ""));
 
@@ -150,6 +150,55 @@ const parseActiveActionStats = () => {
   }
 };
 
+// Parse loot name and timer from HTML document
+// @throws Will throw an error if parsing fails
+const parseLootData = () => {
+  try {
+    const skillPage = document.querySelector("skill-page");
+
+    if (!skillPage) {
+      throw new Error("Could not find <skill-page> element in document");
+    }
+
+    const lootCard = skillPage.querySelector(".card .header .name");
+
+    if (!lootCard) {
+      throw new Error("Could not find loot card in document");
+    }
+
+    const lootName = lootCard.textContent.trim();
+
+    const timeElements = skillPage.querySelectorAll(".card .header .time .ng-star-inserted");
+
+    if (!timeElements.length) {
+      throw new Error("Could not find loot timer elements in document");
+    }
+
+    let totalSeconds = 0;
+
+    timeElements.forEach((el) => {
+      const timeText = el.textContent.trim();
+
+      if (timeText.endsWith('d')) {
+        totalSeconds += parseInt(timeText) * 86400; // days to seconds
+      } else if (timeText.endsWith('h')) {
+        totalSeconds += parseInt(timeText) * 3600; // hours to seconds
+      } else if (timeText.endsWith('m')) {
+        totalSeconds += parseInt(timeText) * 60; // minutes to seconds
+      } else if (timeText.endsWith('s')) {
+        totalSeconds += parseInt(timeText); // seconds
+      }
+    });
+
+    return { lootName, totalSeconds };
+  } catch (error) {
+    throw new Error([
+      "Could not parse loot data",
+      `Reason = ${error.message}`
+    ].join(", "));
+  }
+};
+
 const calculateActionsRequired = ({ exp, actionStats }) => {
   const expRemaining = exp.required - exp.current;
   const actionsRequired = expRemaining / actionStats.exp;
@@ -171,52 +220,35 @@ const renderStats = () => {
   const { seconds, timestamp } = calculateTimeRemaining({ actionsRequired, interval: actionStats.interval });
   const finishDate = calculateFinishDate(seconds);
 
-  const actionsRequiredRow = createRowElement("actions-required");
+  // Create or replace rows for skill-related data
+  createOrReplaceRow("actions-required", "Actions required:", String(actionsRequired));
+  createOrReplaceRow("time-remaining", "Estimated Time remaining:", timestamp);
+  createOrReplaceRow("finish-date", "Estimated Finish Date:", finishDate);
 
-  actionsRequiredRow.appendChild((() => {
-    const label = document.createElement("p");
-    label.textContent = "Actions required:";
-    return label;
+  try {
+    const { lootName, totalSeconds } = parseLootData();
+    const lootFinishDate = calculateFinishDate(totalSeconds);
+    createOrReplaceRow("loot-finish-date", `Loot (${lootName}) Estimated Finish Date:`, lootFinishDate);
+  } catch (error) {
+    console.error(error.message);
+  }
+};
+
+const createOrReplaceRow = (id, label, value) => {
+  const rowElement = createRowElement(id);
+
+  rowElement.appendChild((() => {
+    const labelElement = document.createElement("p");
+    labelElement.textContent = label;
+    return labelElement;
   })());
 
-  actionsRequiredRow.appendChild((() => {
-    const value = document.createElement("p");
-    value.style.paddingLeft = "8px";
-    value.style.color = "#BDA853";
-    value.textContent = String(actionsRequired);
-    return value;
-  })());
-
-  const timeRemainingRow = createRowElement("time-remaining");
-
-  timeRemainingRow.appendChild((() => {
-    const label = document.createElement("p");
-    label.textContent = "Time remaining:";
-    return label;
-  })());
-
-  timeRemainingRow.appendChild((() => {
-    const value = document.createElement("p");
-    value.style.paddingLeft = "8px";
-    value.style.color = "#BDA853";
-    value.textContent = timestamp;
-    return value;
-  })());
-
-  const finishDateRow = createRowElement("finish-date");
-
-  finishDateRow.appendChild((() => {
-    const label = document.createElement("p");
-    label.textContent = "Finish Date:";
-    return label;
-  })());
-
-  finishDateRow.appendChild((() => {
-    const value = document.createElement("p");
-    value.style.paddingLeft = "8px";
-    value.style.color = "#BDA853";
-    value.textContent = finishDate;
-    return value;
+  rowElement.appendChild((() => {
+    const valueElement = document.createElement("p");
+    valueElement.style.paddingLeft = "8px";
+    valueElement.style.color = "#BDA853";
+    valueElement.textContent = value;
+    return valueElement;
   })());
 
   const skillElement = document.querySelector("tracker-component .skill");
@@ -225,30 +257,15 @@ const renderStats = () => {
     throw new Error("Could not find skill element within tracker-component element in document");
   }
 
-  const existingActionsRequiredRow = skillElement.querySelector("#actions-required");
+  const existingRow = skillElement.querySelector(`#${id}`);
 
-  if (existingActionsRequiredRow) {
-    existingActionsRequiredRow.replaceWith(actionsRequiredRow);
+  if (existingRow) {
+    existingRow.replaceWith(rowElement);
   } else {
-    skillElement.appendChild(actionsRequiredRow);
+    skillElement.appendChild(rowElement);
   }
+};
 
-  const existingTimeRemainingRow = skillElement.querySelector("#time-remaining");
-
-  if (existingTimeRemainingRow) {
-    existingTimeRemainingRow.replaceWith(timeRemainingRow);
-  } else {
-    skillElement.appendChild(timeRemainingRow);
-  }
-
-  const existingFinishDateRow = skillElement.querySelector("#finish-date");
-
-  if (existingFinishDateRow) {
-    existingFinishDateRow.replaceWith(finishDateRow);
-  } else {
-    skillElement.appendChild(finishDateRow);
-  }
-}
 
 const createRowElement = (id) => {
   if (!id) {

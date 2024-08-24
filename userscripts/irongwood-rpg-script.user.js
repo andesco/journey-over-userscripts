@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Ironwood RPG Scripts
-// @version      1.1
+// @version      1.2
 // @description  Calculate time remaining for active skill exp based on current exp and action stats, and display it on the skill page in Ironwood RPG
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=ironwoodrpg.com
 // @match        *://ironwoodrpg.com/*
@@ -201,8 +201,8 @@ const parseLootData = () => {
 
 const calculateActionsRequired = ({ exp, actionStats }) => {
   const expRemaining = exp.required - exp.current;
-  const actionsRequired = expRemaining / actionStats.exp;
-  return parseInt(actionsRequired);
+  const actionsRequired = Math.ceil(expRemaining / actionStats.exp); // Round up to ensure the correct number of actions
+  return actionsRequired;
 };
 
 const calculateTimeRemaining = ({ actionsRequired, interval }) => {
@@ -307,7 +307,7 @@ const main = () => {
         errorDisplayed = true;
       }
     }
-  }, 1000);
+  }, 100);
 };
 
 // Entry-point

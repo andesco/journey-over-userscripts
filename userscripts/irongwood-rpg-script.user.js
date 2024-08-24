@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name         Ironwood RPG Scripts
-// @version      1.2
+// @version      1.3
 // @description  Calculate time remaining for active skill exp based on current exp and action stats, and display it on the skill page in Ironwood RPG
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=ironwoodrpg.com
 // @match        *://ironwoodrpg.com/*
@@ -192,10 +192,15 @@ const parseLootData = () => {
 
     return { lootName, totalSeconds };
   } catch (error) {
-    throw new Error([
-      "Could not parse loot data",
-      `Reason = ${error.message}`
-    ].join(", "));
+    // Change: Log this error only once
+    if (!parseLootData.errorLogged) {
+      console.error([
+        "Could not parse loot data",
+        `Reason = ${error.message}`
+      ].join(", "));
+      parseLootData.errorLogged = true;
+    }
+    throw error; // Rethrow to maintain existing error handling behavior
   }
 };
 
@@ -230,7 +235,7 @@ const renderStats = () => {
     const lootFinishDate = calculateFinishDate(totalSeconds);
     createOrReplaceRow("loot-finish-date", `Loot (${lootName}) Estimated Finish Date:`, lootFinishDate);
   } catch (error) {
-    console.error(error.message);
+    // Already handled inside parseLootData
   }
 };
 
@@ -265,7 +270,6 @@ const createOrReplaceRow = (id, label, value) => {
     skillElement.appendChild(rowElement);
   }
 };
-
 
 const createRowElement = (id) => {
   if (!id) {

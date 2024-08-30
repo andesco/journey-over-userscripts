@@ -1,13 +1,10 @@
 // ==UserScript==
 // @name         Ironwood RPG Scripts
-// @version      1.3
+// @version      1.4.0
 // @description  Calculate time remaining for active skill exp based on current exp and action stats, and display it on the skill page in Ironwood RPG
 // @icon         https://www.google.com/s2/favicons?sz=64&domain=ironwoodrpg.com
 // @match        *://ironwoodrpg.com/*
 // @grant        none
-// @require      https://code.jquery.com/jquery-3.6.4.min.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js
-// @require      https://cdnjs.cloudflare.com/ajax/libs/matter-js/0.20.0/matter.min.js
 // ==/UserScript==
 
 /**
@@ -17,36 +14,25 @@
  * @returns {string}
  */
 const convertSecondsToTimestamp = (seconds) => {
-  const years = Math.floor(seconds / (3600 * 24 * 365));
-  seconds %= 3600 * 24 * 365;
+  const units = [
+    { label: 'Y', value: 3600 * 24 * 365 }, // Years
+    { label: 'Mo', value: 3600 * 24 * 30 }, // Months
+    { label: 'D', value: 3600 * 24 },       // Days
+    { label: 'H', value: 3600 },            // Hours
+    { label: 'M', value: 60 },              // Minutes
+    { label: 'S', value: 1 }                // Seconds
+  ];
 
-  const months = Math.floor(seconds / (3600 * 24 * 30));
-  seconds %= 3600 * 24 * 30;
-
-  const days = Math.floor(seconds / (3600 * 24));
-  seconds %= 3600 * 24;
-
-  const hours = Math.floor(seconds / 3600).toString().padStart(2, "0");
-  seconds %= 3600;
-
-  const minutes = Math.floor(seconds / 60).toString().padStart(2, "0");
-  const remainingSeconds = (seconds % 60).toFixed(0).toString().padStart(2, "0");
-
-  let timestamp = "";
-
-  if (years > 0) {
-    timestamp += `${years}y `;
-  }
-  if (months > 0) {
-    timestamp += `${months}m `;
-  }
-  if (days > 0) {
-    timestamp += `${days}d `;
-  }
-
-  timestamp += `${hours}:${minutes}:${remainingSeconds}`;
-
-  return timestamp.trim();
+  return units
+    .map(({ label, value }) => {
+      const unit = Math.floor(seconds / value);
+      seconds %= value;
+      return unit > 0 || ['H', 'M', 'S'].includes(label)
+        ? `${unit.toString().padStart(2, '0')}${label}`
+        : '';
+    })
+    .filter(Boolean)
+    .join(' ') || '00S'; // Ensure at least seconds are shown
 };
 
 /**
@@ -55,150 +41,65 @@ const convertSecondsToTimestamp = (seconds) => {
  * @returns {string}
  */
 const calculateFinishDate = (secondsRemaining) => {
-  const finishDate = new Date(Date.now() + secondsRemaining * 1000);
-  return finishDate.toLocaleString();
+  return new Date(Date.now() + secondsRemaining * 1000).toLocaleString();
 };
 
-// Parse active skill exp from HTML document
-// @throws Will throw an error if parsing fails
-const parseActiveSkillExp = () => {
+/**
+ * Parses various data from the HTML document.
+ * @returns {Object}
+ * @throws Will throw an error if parsing fails
+ */
+const parsePageData = () => {
   try {
-    const skillPage = document.getElementsByTagName("skill-page")?.[0];
+    const skillPage = document.querySelector('skill-page');
+    if (!skillPage) throw new Error("Could not find <skill-page> element in document");
 
-    if (!skillPage) {
-      throw new Error("Could not find <skill-page> element in document");
-    }
+    // Parse active skill exp
+    const expElement = skillPage.querySelector('tracker-component .exp');
+    if (!expElement) throw new Error("Could not find element with 'exp' class within <tracker-component>");
 
-    const trackerComponent = skillPage.getElementsByTagName("tracker-component")?.[0];
+    const [currentExp, , requiredExp] = expElement.textContent.trim().toLowerCase().split(" ");
+    const current = Number(currentExp.replaceAll(",", ""));
+    const required = Number(requiredExp.replaceAll(",", ""));
 
-    if (!trackerComponent) {
-      throw new Error("Could not find <tracker-component> element within <skill-page> element in document");
-    }
+    // Parse active action stats
+    const actionsElement = skillPage.querySelector('actions-component button.active-link .stats');
+    if (!actionsElement) throw new Error("Could not find action stats element within actions component");
 
-    const expElement = trackerComponent.getElementsByClassName("exp")?.[0];
+    const exp = parseFloat(actionsElement.querySelector('.exp').textContent.trim().split(" ")[0]);
+    const interval = parseFloat(actionsElement.querySelector('.interval').textContent.trim().slice(0, -1));
 
-    if (!expElement) {
-      throw new Error("Could not find element with 'exp' class within <tracker-component> element in document");
-    }
+    // Parse loot data
+    const lootName = skillPage.querySelector('.card .header .name')?.textContent.trim();
+    if (!lootName) throw new Error("Could not find loot card in document");
 
-    const sanitizedExpString = expElement.textContent.trim().toLowerCase();
-    const [currentExpString, , requiredExpString,] = sanitizedExpString.split(" ");
-    const current = Number(currentExpString.replaceAll(",", ""));
-    const required = Number(requiredExpString.replaceAll(",", ""));
-
-    return { current, required };
-  } catch (error) {
-    throw new Error([
-      "Could not parse active skill exp",
-      `Reason = ${error.message}`
-    ].join(", "));
-  }
-};
-
-// Parse active action stats from HTML document
-// @throws Will throw an error if parsing fails
-const parseActiveActionStats = () => {
-  try {
-    const skillPage = document.getElementsByTagName("skill-page")?.[0];
-
-    if (!skillPage) {
-      throw new Error("Could not find <skill-page> element in document");
-    }
-
-    const actionsComponent = document.getElementsByTagName("actions-component")?.[0];
-
-    if (!actionsComponent) {
-      throw new Error("Could not find <actions-component> element within <skill-page> element in document");
-    }
-
-    const actionsElement = actionsComponent.querySelector("button.active-link");
-
-    if (!actionsElement) {
-      throw new Error("Could not find action element within <actions-component> element in document");
-    }
-
-    const actionStatsElement = actionsElement.getElementsByClassName("stats")?.[0];
-
-    if (!actionStatsElement) {
-      throw new Error("Could not find action stats element within actions element in document");
-    }
-
-    const expElement = actionStatsElement.getElementsByClassName("exp")?.[0];
-
-    if (!expElement) {
-      throw new Error("Could not find exp element within action stats element in document");
-    }
-
-    const intervalElement = actionStatsElement.getElementsByClassName("interval")?.[0];
-
-    if (!intervalElement) {
-      throw new Error("Could not find interval element within action stats element in document");
-    }
-
-    const exp = expElement.textContent.trim().split(" ")[0];
-    const interval = intervalElement.textContent.trim().slice(0, -1);
-
-    return {
-      exp: parseFloat(exp),
-      interval: parseFloat(interval)
-    };
-  } catch (error) {
-    throw new Error([
-      "Could not parse active action stats",
-      `Reason = ${error.message}`
-    ].join(", "));
-  }
-};
-
-// Parse loot name and timer from HTML document
-// @throws Will throw an error if parsing fails
-const parseLootData = () => {
-  try {
-    const skillPage = document.querySelector("skill-page");
-
-    if (!skillPage) {
-      throw new Error("Could not find <skill-page> element in document");
-    }
-
-    const lootCard = skillPage.querySelector(".card .header .name");
-
-    if (!lootCard) {
-      throw new Error("Could not find loot card in document");
-    }
-
-    const lootName = lootCard.textContent.trim();
-
-    const timeElements = skillPage.querySelectorAll(".card .header .time .ng-star-inserted");
-
-    if (!timeElements.length) {
-      throw new Error("Could not find loot timer elements in document");
-    }
-
+    const timeElements = skillPage.querySelectorAll('.card .header .time .ng-star-inserted');
     let totalSeconds = 0;
 
-    timeElements.forEach((el) => {
-      const timeText = el.textContent.trim();
+    if (timeElements.length) {
+      timeElements.forEach((el) => {
+        const timeText = el.textContent.trim();
+        const value = parseInt(timeText);
 
-      if (timeText.endsWith('d')) {
-        totalSeconds += parseInt(timeText) * 86400; // days to seconds
-      } else if (timeText.endsWith('h')) {
-        totalSeconds += parseInt(timeText) * 3600; // hours to seconds
-      } else if (timeText.endsWith('m')) {
-        totalSeconds += parseInt(timeText) * 60; // minutes to seconds
-      } else if (timeText.endsWith('s')) {
-        totalSeconds += parseInt(timeText); // seconds
-      }
-    });
+        if (timeText.endsWith('d')) {
+          totalSeconds += value * 86400; // days to seconds
+        } else if (timeText.endsWith('h')) {
+          totalSeconds += value * 3600; // hours to seconds
+        } else if (timeText.endsWith('m')) {
+          totalSeconds += value * 60; // minutes to seconds
+        } else if (timeText.endsWith('s')) {
+          totalSeconds += value; // seconds
+        }
+      });
+    } else {
+      //console.warn("Loot timer elements not found. Defaulting to no loot data.");
+    }
 
-    return { lootName, totalSeconds };
+    return { exp: { current, required }, actionStats: { exp, interval }, lootName, totalSeconds, hasLootData: timeElements.length > 0 };
   } catch (error) {
-    // Change: Log this error only once
-    if (!parseLootData.errorLogged) {
-      console.error([
-        "Could not parse loot data",
-        `Reason = ${error.message}`
-      ].join(", "));
-      parseLootData.errorLogged = true;
+    if (!parsePageData.errorLogged) {
+      console.error(`Could not parse page data: ${error.message}`);
+      parsePageData.errorLogged = true;
     }
     throw error; // Rethrow to maintain existing error handling behavior
   }
@@ -206,8 +107,7 @@ const parseLootData = () => {
 
 const calculateActionsRequired = ({ exp, actionStats }) => {
   const expRemaining = exp.required - exp.current;
-  const actionsRequired = Math.ceil(expRemaining / actionStats.exp); // Round up to ensure the correct number of actions
-  return actionsRequired;
+  return Math.ceil(expRemaining / actionStats.exp); // Round up to ensure the correct number of actions
 };
 
 const calculateTimeRemaining = ({ actionsRequired, interval }) => {
@@ -219,8 +119,7 @@ const calculateTimeRemaining = ({ actionsRequired, interval }) => {
 }
 
 const renderStats = () => {
-  const exp = parseActiveSkillExp();
-  const actionStats = parseActiveActionStats();
+  const { exp, actionStats, lootName, totalSeconds, hasLootData } = parsePageData();
   const actionsRequired = calculateActionsRequired({ exp, actionStats });
   const { seconds, timestamp } = calculateTimeRemaining({ actionsRequired, interval: actionStats.interval });
   const finishDate = calculateFinishDate(seconds);
@@ -230,78 +129,53 @@ const renderStats = () => {
   createOrReplaceRow("time-remaining", "Estimated Time remaining:", timestamp);
   createOrReplaceRow("finish-date", "Estimated Finish Date:", finishDate);
 
-  try {
-    const { lootName, totalSeconds } = parseLootData();
+  if (hasLootData) {
     const lootFinishDate = calculateFinishDate(totalSeconds);
     createOrReplaceRow("loot-finish-date", `Loot (${lootName}) Estimated Finish Date:`, lootFinishDate);
-  } catch (error) {
-    // Already handled inside parseLootData
   }
 };
 
 const createOrReplaceRow = (id, label, value) => {
   const rowElement = createRowElement(id);
 
-  rowElement.appendChild((() => {
-    const labelElement = document.createElement("p");
-    labelElement.textContent = label;
-    return labelElement;
-  })());
-
-  rowElement.appendChild((() => {
-    const valueElement = document.createElement("p");
-    valueElement.style.paddingLeft = "8px";
-    valueElement.style.color = "#BDA853";
-    valueElement.textContent = value;
-    return valueElement;
-  })());
+  rowElement.innerHTML = `
+    <p>${label}</p>
+    <p style="padding-left: 8px; color: #BDA853;">${value}</p>
+  `;
 
   const skillElement = document.querySelector("tracker-component .skill");
-
-  if (!skillElement) {
-    throw new Error("Could not find skill element within tracker-component element in document");
-  }
+  if (!skillElement) throw new Error("Could not find skill element within tracker-component element in document");
 
   const existingRow = skillElement.querySelector(`#${id}`);
-
-  if (existingRow) {
-    existingRow.replaceWith(rowElement);
-  } else {
-    skillElement.appendChild(rowElement);
-  }
+  existingRow ? existingRow.replaceWith(rowElement) : skillElement.appendChild(rowElement);
 };
 
 const createRowElement = (id) => {
-  if (!id) {
-    throw new Error("No id provided for row element");
-  }
+  if (!id) throw new Error("No id provided for row element");
 
   const rowTemplate = document.querySelector("tracker-component .skill .row");
-
-  if (!rowTemplate) {
-    throw new Error("Could not find template row element in document");
-  }
+  if (!rowTemplate) throw new Error("Could not find template row element in document");
 
   const rowElement = rowTemplate.cloneNode();
-
   rowElement.replaceChildren();
-
   rowElement.setAttribute("id", id);
 
-  rowElement.style.display = "flex";
-  rowElement.style.flexDirection = "flex-row";
-  rowElement.style.justifyContent = "flex-start";
-  rowElement.style.alignItems = "center";
+  Object.assign(rowElement.style, {
+    display: "flex",
+    flexDirection: "row",
+    justifyContent: "flex-start",
+    alignItems: "center"
+  });
 
   return rowElement;
-}
+};
 
 const main = () => {
-  console.log('ironwood rpg scripts loaded');
+  console.log('Ironwood RPG scripts loaded');
 
   let errorDisplayed = false;
 
-  let mainInterval = setInterval(() => {
+  const mainInterval = setInterval(() => {
     try {
       renderStats();
       errorDisplayed = false;
@@ -318,7 +192,5 @@ const main = () => {
 if (document.readyState !== "loading") {
   main();
 } else {
-  document.addEventListener("DOMContentLoaded", () => {
-    main();
-  });
+  document.addEventListener("DOMContentLoaded", main);
 }

@@ -1,25 +1,75 @@
 // ==UserScript==
 // @name          ThePosterDB Easy Links
-// @namespace     https://github.com/StylusThemes/Userscripts
+// @version       1.1.0
 // @description   Add "Copy Poster Link" button to all ThePosterDB pages
+// @author        Journey Over
+// @license       MIT
 // @match         *://theposterdb.com/*
 // @require       https://code.jquery.com/jquery-3.5.1.min.js
-// @version       0.1
 // @grant         GM_setClipboard
+// @icon          https://www.google.com/s2/favicons?sz=64&domain=theposterdb.com
+// @homepageURL   https://github.com/StylusThemes/Userscripts
+// @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
+// @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
 // ==/UserScript==
 
-(function() { 'use strict';
+(function () {
+    'use strict';
 
-$(".col-6 .hovereffect").map(function() {
-    let posterId = $(this).find('div[data-poster-id]').attr("data-poster-id")
-    let linkButton = $("<div style='text-align: center; cursor: pointer;" +
-        "margin-top: 5px; background-color: #28965a'>" +
-        "COPY LINK TO CLIPBOARD</div>")
+    // Common styles
+    const buttonStyle = {
+      textAlign: 'center',
+      cursor: 'pointer',
+      marginTop: '5px',
+      backgroundColor: '#28965a',
+      color: 'white',
+      padding: '5px',
+      borderRadius: '3px',
+      zIndex: 1000, // Ensure the button is above other elements
+      position: 'relative', // Keep button relative to the flow of the page
+    };
 
-    linkButton.click(function() {
-        GM_setClipboard("https://theposterdb.com/api/assets/" + posterId);
+    const notificationStyle = {
+      position: 'fixed',
+      top: '10px',
+      right: '10px',
+      padding: '10px',
+      backgroundColor: '#4caf50',
+      color: 'white',
+      zIndex: 10000,
+      borderRadius: '5px',
+      boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)'
+    };
+
+    // Function to create and show a notification
+    const showNotification = (message) => {
+      const notification = $('<div>').text(message).css(notificationStyle).appendTo('body');
+
+      // Automatically fade out and remove the notification after 3 seconds
+      setTimeout(() => {
+        notification.fadeOut(400, () => notification.remove());
+      }, 3000);
+    };
+
+    // Function to add the copy button to each poster
+    const addCopyButton = (posterElement) => {
+      const posterId = posterElement.find('div[data-poster-id]').data('poster-id');
+      const copyButton = $('<div>').text('COPY LINK TO CLIPBOARD').css(buttonStyle);
+
+      // Copy poster link to clipboard on button click
+      copyButton.on('click', () => {
+        const posterLink = `https://theposterdb.com/api/assets/${posterId}`;
+        GM_setClipboard(posterLink);
+        showNotification('Link copied to clipboard!');
+      });
+
+      // Insert the button after the poster element, not inside it to avoid hover interference
+      posterElement.parent().append(copyButton);
+    };
+
+    // Loop through all poster elements and add the copy button
+    $('.col-6 .hovereffect').each(function () {
+      addCopyButton($(this));
     });
 
-    linkButton.insertAfter($(this));
-});
-})();
+  })();

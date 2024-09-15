@@ -1,9 +1,14 @@
 // ==UserScript==
 // @name          ThePosterDB Easy Links
-// @namespace     https://github.com/StylusThemes/Userscripts
+// @version       1.1.0
 // @description   Add "Copy Poster Link" button to all ThePosterDB pages
+// @author        Journey Over
+// @license       MIT
 // @match         *://theposterdb.com/*
 // @require       https://code.jquery.com/jquery-3.5.1.min.js
-// @version       0.1
 // @grant         GM_setClipboard
+// @icon          https://www.google.com/s2/favicons?sz=64&domain=theposterdb.com
+// @homepageURL   https://github.com/StylusThemes/Userscripts
+// @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
+// @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
 // ==/UserScript==

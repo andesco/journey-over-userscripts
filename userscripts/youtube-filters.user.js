@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          YouTube Filters
-// @version       1.4.0
+// @version       1.4.1
 // @description   Filters YouTube videos by duration and age. Hides videos less than X seconds long or older than a specified number of years, excluding channel video tabs.
 // @author        Journey Over
 // @license       MIT
@@ -21,6 +21,7 @@
   // Retrieve settings or use defaults
   const MIN_DURATION_SECONDS = GM_getValue('MIN_DURATION_SECONDS', 120);
   const AGE_THRESHOLD_YEARS = GM_getValue('AGE_THRESHOLD_YEARS', 4);
+  const ENABLE_CONSOLE_LOGS = GM_getValue('ENABLE_CONSOLE_LOGS', true);
 
   const processedVideos = new Set(); // To keep track of processed videos
 
@@ -32,25 +33,30 @@
     settingsContainer.style.top = '50%';
     settingsContainer.style.left = '50%';
     settingsContainer.style.transform = 'translate(-50%, -50%)';
-    settingsContainer.style.backgroundColor = '#333';
-    settingsContainer.style.color = '#fff';
+    settingsContainer.style.backgroundColor = '#282c34';
+    settingsContainer.style.color = '#abb2bf';
     settingsContainer.style.padding = '20px';
-    settingsContainer.style.borderRadius = '8px';
+    settingsContainer.style.borderRadius = '10px';
     settingsContainer.style.zIndex = '10000';
-    settingsContainer.style.boxShadow = '0 0 15px rgba(0, 0, 0, 0.6)';
-    settingsContainer.style.maxWidth = '400px';
+    settingsContainer.style.boxShadow = '0 0 20px rgba(0, 0, 0, 0.5)';
+    settingsContainer.style.maxWidth = '500px';
     settingsContainer.style.maxHeight = '500px';
     settingsContainer.style.overflowY = 'auto';
+    settingsContainer.style.fontFamily = 'Arial, sans-serif';
 
     settingsContainer.innerHTML = `
       <div>
-        <h3 style="margin: 0;">Video Filters Settings</h3>
-        <label for="min-duration">Minimum Duration (seconds):</label>
-        <input type="number" id="min-duration" value="${MIN_DURATION_SECONDS}" style="width: 100%; margin-bottom: 10px;">
-        <label for="age-threshold">Age Threshold (years):</label>
-        <input type="number" id="age-threshold" value="${AGE_THRESHOLD_YEARS}" style="width: 100%; margin-bottom: 10px;">
-        <button id="save-settings" style="width: 100%; padding: 8px; background-color: #007bff; color: #fff; border: none; border-radius: 4px; cursor: pointer; margin-bottom: 5px;">Save</button>
-        <button id="close-settings" style="width: 100%; padding: 8px; background-color: #dc3545; color: #fff; border: none; border-radius: 4px; cursor: pointer;">Close</button>
+        <h3 style="margin: 0 0 15px 0; font-size: 1.5em; color: #61dafb;">Video Filters Settings</h3>
+        <label for="min-duration" style="display: block; margin-bottom: 5px;">Minimum Duration (seconds):</label>
+        <input type="number" id="min-duration" value="${MIN_DURATION_SECONDS}" style="width: calc(100% - 22px); padding: 8px; border: 1px solid #444c56; border-radius: 5px; background: #3e4451; color: #abb2bf; margin-bottom: 15px;">
+        <label for="age-threshold" style="display: block; margin-bottom: 5px;">Age Threshold (years):</label>
+        <input type="number" id="age-threshold" value="${AGE_THRESHOLD_YEARS}" style="width: calc(100% - 22px); padding: 8px; border: 1px solid #444c56; border-radius: 5px; background: #3e4451; color: #abb2bf; margin-bottom: 15px;">
+        <label for="enable-logs" style="display: block; margin-bottom: 5px;">Enable Console Logs:</label>
+        <input type="checkbox" id="enable-logs" ${ENABLE_CONSOLE_LOGS ? 'checked' : ''} style="margin-bottom: 15px;">
+        <div style="display: flex; justify-content: space-between;">
+          <button id="save-settings" style="flex: 1; margin-right: 10px; padding: 10px; background-color: #61dafb; color: #282c34; border: none; border-radius: 5px; cursor: pointer;">Save</button>
+          <button id="close-settings" style="flex: 1; padding: 10px; background-color: #e06c75; color: #282c34; border: none; border-radius: 5px; cursor: pointer;">Close</button>
+        </div>
       </div>
     `;
     document.body.appendChild(settingsContainer);
@@ -61,10 +67,13 @@
     saveButton.addEventListener('click', () => {
       const newMinDuration = parseInt(document.getElementById('min-duration').value, 10);
       const newAgeThreshold = parseInt(document.getElementById('age-threshold').value, 10);
+      const newEnableLogs = document.getElementById('enable-logs').checked;
       GM_setValue('MIN_DURATION_SECONDS', newMinDuration);
       GM_setValue('AGE_THRESHOLD_YEARS', newAgeThreshold);
+      GM_setValue('ENABLE_CONSOLE_LOGS', newEnableLogs);
       alert('Settings saved!');
       settingsContainer.remove();
+      window.location.reload();
     });
 
     closeButton.addEventListener('click', () => {
@@ -92,7 +101,7 @@
     return durationInSeconds < MIN_DURATION_SECONDS && durationInSeconds !== 0;
   }
 
-  // Function to extract video age text and convert it to years
+  // Function to extract video age text
   function getVideoAgeTextAndYears(video) {
     const ageText = Array.from(video.querySelectorAll('span.inline-metadata-item.style-scope.ytd-video-meta-block'))
       .map(el => el.innerText.trim())
@@ -115,7 +124,6 @@
     const isChannelPage = url.includes('@') && url.includes('/videos');
 
     if (isChannelPage) {
-      //console.log("Skipping filtering on channel page.");
       return; // Exit if we are on a channel's video tab
     }
 
@@ -132,11 +140,15 @@
       const { text: videoAgeText, years: videoAgeInYears } = getVideoAgeTextAndYears(video);
 
       if (isShortVideo(durationInSeconds)) {
-        console.log(`%cDuration Removal: %c"${title}" %c(${durationText})`, "color: red;", "color: orange;", "color: deepskyblue;");
+        if (ENABLE_CONSOLE_LOGS) {
+          console.log(`%cDuration Removal: %c"${title}" %c(${durationText})`, "color: red;", "color: orange;", "color: deepskyblue;");
+        }
         video.style.display = 'none'; // Hide short videos
         processedVideos.add(video); // Mark as processed
       } else if (videoAgeInYears >= AGE_THRESHOLD_YEARS) {
-        console.log(`%cAge Removal: %c"${title}" %c(${videoAgeText})`, "color: red;", "color: orange;", "color: deepskyblue;");
+        if (ENABLE_CONSOLE_LOGS) {
+          console.log(`%cAge Removal: %c"${title}" %c(${videoAgeText})`, "color: red;", "color: orange;", "color: deepskyblue;");
+        }
         video.style.display = 'none'; // Hide old videos
         processedVideos.add(video); // Mark as processed
       }

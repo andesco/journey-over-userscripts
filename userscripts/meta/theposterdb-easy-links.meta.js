@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name          ThePosterDB Easy Links
-// @version       1.1.0
+// @name          ThePosterDB - Easy Links
+// @version       1.1.1
 // @description   Add "Copy Poster Link" button to all ThePosterDB pages
 // @author        Journey Over
 // @license       MIT

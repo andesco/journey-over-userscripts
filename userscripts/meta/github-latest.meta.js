@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name          GitHub Latest
-// @version       1.5.0
+// @name          GitHub - Latest
+// @version       1.5.1
 // @description   Always keep an eye on the latest activity of your favorite projects
 // @author        Journey Over
 // @license       MIT

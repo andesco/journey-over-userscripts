@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name          GitHub Cleanup
-// @version       1.0.0
+// @name          GitHub - Cleanup
+// @version       1.0.1
 // @description   Remove unwanted elements from GitHub pages
 // @author        Journey Over
 // @license       MIT

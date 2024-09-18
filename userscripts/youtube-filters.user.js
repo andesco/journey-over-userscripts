@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name          YouTube Filters
-// @version       1.4.1
+// @name          YouTube - Filters
+// @version       1.4.2
 // @description   Filters YouTube videos by duration and age. Hides videos less than X seconds long or older than a specified number of years, excluding channel video tabs.
 // @author        Journey Over
 // @license       MIT

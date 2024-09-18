@@ -1,6 +1,6 @@
 // ==UserScript==
-// @name          Disable Youtube playlist autoplay
-// @version       1.0.0
+// @name          YouTube - Disable playlist autoplay
+// @version       1.0.1
 // @description   Disables Youtube playlist autoplay
 // @author        Journey Over
 // @license       MIT

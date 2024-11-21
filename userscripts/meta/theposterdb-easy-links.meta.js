@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       1.1.1
-// @description   Add "Copy Poster Link" button to all ThePosterDB pages
+// @version       1.2.0
+// @description   Add "Copy Poster Link" and "Copy Poster ID" buttons to all ThePosterDB pages
 // @author        Journey Over
 // @license       MIT
 // @match         *://theposterdb.com/*

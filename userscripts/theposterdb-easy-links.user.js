@@ -1,7 +1,7 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       1.1.1
-// @description   Add "Copy Poster Link" button to all ThePosterDB pages
+// @version       1.2.0
+// @description   Add "Copy Poster Link" and "Copy Poster ID" buttons to all ThePosterDB pages
 // @author        Journey Over
 // @license       MIT
 // @match         *://theposterdb.com/*
@@ -14,22 +14,36 @@
 // ==/UserScript==
 
 (function () {
-    'use strict';
+  'use strict';
 
-    // Common styles
-    const buttonStyle = {
+  // Styles
+  const containerStyle = {
+      display: 'flex',
+      justifyContent: 'space-between',
+      gap: '5px',
+      marginTop: '5px',
+  };
+
+  const buttonStyle = {
+      flex: '1',
       textAlign: 'center',
       cursor: 'pointer',
-      marginTop: '5px',
       backgroundColor: '#28965a',
       color: 'white',
-      padding: '5px',
-      borderRadius: '3px',
-      zIndex: 1000, // Ensure the button is above other elements
-      position: 'relative', // Keep button relative to the flow of the page
-    };
+      padding: '5px 10px',
+      borderRadius: '5px',
+      fontSize: '12px',
+      border: '1px solid #219150',
+      transition: 'background-color 0.3s, transform 0.2s',
+  };
 
-    const notificationStyle = {
+  const secondaryButtonStyle = {
+      ...buttonStyle,
+      backgroundColor: '#007bff',
+      border: '1px solid #0056b3',
+  };
+
+  const notificationStyle = {
       position: 'fixed',
       top: '10px',
       right: '10px',
@@ -38,38 +52,79 @@
       color: 'white',
       zIndex: 10000,
       borderRadius: '5px',
-      boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)'
-    };
+      boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
+  };
 
-    // Function to create and show a notification
-    const showNotification = (message) => {
-      const notification = $('<div>').text(message).css(notificationStyle).appendTo('body');
+  // Add hover effects to buttons
+  const addHoverEffects = (button, hoverColor) => {
+      button.hover(
+          function () {
+              $(this).css({
+                  backgroundColor: hoverColor,
+                  transform: 'scale(1.05)',
+              });
+          },
+          function () {
+              $(this).css({
+                  backgroundColor: button.data('originalColor'),
+                  transform: 'scale(1)',
+              });
+          }
+      );
+  };
 
-      // Automatically fade out and remove the notification after 3 seconds
+  // Create and display a notification
+  const showNotification = (message) => {
+      const notification = $('<div>')
+          .text(message)
+          .css(notificationStyle)
+          .appendTo('body');
+
       setTimeout(() => {
-        notification.fadeOut(400, () => notification.remove());
+          notification.fadeOut(400, () => notification.remove());
       }, 3000);
-    };
+  };
 
-    // Function to add the copy button to each poster
-    const addCopyButton = (posterElement) => {
+  // Add copy buttons to each poster
+  const addCopyButtons = (posterElement) => {
       const posterId = posterElement.find('div[data-poster-id]').data('poster-id');
-      const copyButton = $('<div>').text('COPY LINK TO CLIPBOARD').css(buttonStyle);
 
-      // Copy poster link to clipboard on button click
-      copyButton.on('click', () => {
-        const posterLink = `https://theposterdb.com/api/assets/${posterId}`;
-        GM_setClipboard(posterLink);
-        showNotification('Link copied to clipboard!');
-      });
+      // "Copy Link" button
+      const copyLinkButton = $('<div>')
+          .text('Copy Link')
+          .css(buttonStyle)
+          .data('originalColor', '#28965a')
+          .on('click', () => {
+              const posterLink = `https://theposterdb.com/api/assets/${posterId}`;
+              GM_setClipboard(posterLink);
+              showNotification('Link copied to clipboard!');
+          });
 
-      // Insert the button after the poster element, not inside it to avoid hover interference
-      posterElement.parent().append(copyButton);
-    };
+      addHoverEffects(copyLinkButton, '#1e7948'); // Darker green on hover
 
-    // Loop through all poster elements and add the copy button
-    $('.col-6 .hovereffect').each(function () {
-      addCopyButton($(this));
-    });
+      // "Copy ID" button
+      const copyIdButton = $('<div>')
+          .text('Copy ID')
+          .css(secondaryButtonStyle)
+          .data('originalColor', '#007bff')
+          .on('click', () => {
+              GM_setClipboard(posterId);
+              showNotification('ID copied to clipboard!');
+          });
 
-  })();
+      addHoverEffects(copyIdButton, '#0056b3'); // Darker blue on hover
+
+      // Container for buttons
+      const buttonContainer = $('<div>')
+          .css(containerStyle)
+          .append(copyLinkButton, copyIdButton);
+
+      // Append buttons to the DOM
+      posterElement.parent().append(buttonContainer);
+  };
+
+  // Process all poster elements
+  $('.col-6 .hovereffect').each(function () {
+      addCopyButtons($(this));
+  });
+})();

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       1.3.0
+// @version       1.3.1
 // @description   Makes it easier to copy data from ThePosterDB
 // @author        Journey Over
 // @license       MIT
@@ -102,10 +102,12 @@
     }
 
     generateMetadata() {
-      return this.posters
-        .map(({ title, year, urlPoster }) =>
-          `  "${title}":\n    match:\n      year: ${year || 'Unknown'}\n    url_poster: "${urlPoster}"\n`)
-        .join('\n');
+      return `metadata:\n\n` +
+        this.posters
+          .map(({ title, year, urlPoster }) =>
+            `  "${title}":\n    match:\n      year: ${year || 'Unknown'}\n    url_poster: "${urlPoster}"`
+          )
+          .join('\n\n');
     }
   }
 

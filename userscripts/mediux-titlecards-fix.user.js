@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Mediux - Yaml Fixes
-// @version       1.0.0
+// @version       1.0.1
 // @description   Adds fixes and functions to Mediux
 // @author        Journey Over
 // @license       MIT
@@ -260,7 +260,7 @@ function fix_cards(codeblock) {
 }
 
 function format_tv_yml(codeblock) {
-  const button = document.querySelector('#fytvbutton'); // New button for formatting
+  const button = document.querySelector('#fytvbutton');
   var yaml = codeblock.textContent;
 
   // Extract the set ID, title, and year from the HTML content
@@ -302,17 +302,21 @@ function format_tv_yml(codeblock) {
 }
 
 function format_movie_yml(codeblock) {
-  const button = document.querySelector('#fymoviebutton'); // New button for transformation
+  const button = document.querySelector('#fymoviebutton');
   var yaml = codeblock.textContent;
 
   // Regex to match each metadata block and simplify the information
-  yaml = yaml.replace(/(\d+): # (.*?)\((\d{4})\).*?\n\s+url_poster: (https:\/\/api\.mediux\.pro\/assets\/[a-z0-9\-]+)\n\s+url_background: (https:\/\/api\.mediux\.pro\/assets\/[a-z0-9\-]+)/g, (match, id, title, year, poster, background) => {
-    return `${id}: # ${title.trim()} (${year})\n    url_poster: "${poster}"\n    url_background: "${background}"`;
-  });
+  yaml = yaml.replace(
+    /(\d+): # (.*?)\((\d{4})\).*?\n\s+url_poster: (https:\/\/api\.mediux\.pro\/assets\/[a-z0-9\-]+)(?:\n\s+url_background: (https:\/\/api\.mediux\.pro\/assets\/[a-z0-9\-]+))?/g,
+    (match, id, title, year, poster, background) => {
+      // Create the cleaned-up YAML entry
+      return `${id}: # ${title.trim()} (${year})\n    url_poster: "${poster}"${background ? `\n    url_background: "${background}"` : ''}`;
+    }
+  );
 
   // Add metadata header if not present
   if (!yaml.startsWith('metadata:')) {
-    yaml = `metadata:\n${yaml}`;
+    yaml = `metadata:\n\n${yaml}`;
   }
 
   // Update the code block with the transformed YAML

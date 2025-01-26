@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.1.0
+// @version       2.1.1
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT
@@ -192,16 +192,31 @@
         // Check for excluded file extensions
         const isAllowedExtension = this.#config.allowedExtensions.includes(fileExtension);
 
-        // Check for filtered keywords in filename
+        // Check for filtered keywords in filename using regex support
         const isFilteredOut = this.#config.filterKeywords.some(keyword => {
           const trimmedKeyword = keyword.trim().toLowerCase();
 
-          // Check if keyword matches entire folder name
+          let regex;
+          if (trimmedKeyword.startsWith('/') && trimmedKeyword.endsWith('/')) {
+            try {
+              regex = new RegExp(trimmedKeyword.slice(1, -1), 'i');
+            } catch (e) {
+              console.warn(`Invalid regex pattern: ${trimmedKeyword}`, e);
+              return false;
+            }
+          }
+
+          // Check if regex pattern matches file name or path
+          if (regex) {
+            return regex.test(filePath) || regex.test(fileName);
+          }
+
+          // Default to string comparison if not regex
           const folderMatch = filePath.split('/').some(pathSegment =>
             pathSegment.includes(trimmedKeyword)
           );
 
-          // Check if keyword matches filename
+          // Check if filtered keywords matches filename
           const fileNameMatch = fileName.includes(trimmedKeyword);
 
           return folderMatch || fileNameMatch;
@@ -257,7 +272,7 @@
 
                   <div style="margin-bottom:20px;">
                       <label style="display:block;margin-bottom:8px;font-weight:bold;color:#b2ebf2;">Allowed Extensions</label>
-                      <textarea id="extensions" placeholder="Enter file extensions (comma-separated)"
+                      <textarea id="extensions" placeholder="Enter file extensions to allow"
                           style="width:100%;padding:12px;border:1px solid #4db6ac;border-radius:8px;background-color:#2c2c3a;color:#ffffff;min-height:80px;">${currentConfig.allowedExtensions.join(',')}</textarea>
                       <small style="color:#80cbc4;display:block;margin-top:6px;">Separate extensions with commas (e.g., mp4,mkv,avi)</small>
                   </div>
@@ -266,7 +281,7 @@
                       <label style="display:block;margin-bottom:8px;font-weight:bold;color:#b2ebf2;">Filter Keywords</label>
                       <textarea id="keywords" placeholder="Enter keywords to filter out"
                           style="width:100%;padding:12px;border:1px solid #4db6ac;border-radius:8px;background-color:#2c2c3a;color:#ffffff;min-height:80px;">${currentConfig.filterKeywords.join(',')}</textarea>
-                      <small style="color:#80cbc4;display:block;margin-top:6px;">Separate keywords with commas (e.g., sample,trailer)</small>
+                      <small style="color:#80cbc4;display:block;margin-top:6px;">Separate keywords with commas (e.g., sample, /trailer/, /featurette?s/)</small>
                   </div>
 
                   <div style="margin-bottom:20px;">

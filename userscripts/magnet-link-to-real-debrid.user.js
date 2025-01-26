@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.0.0
+// @version       2.1.0
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT
@@ -187,11 +187,25 @@
       return files.filter(file => {
         const fileExtension = file.path.split('.').pop().toLowerCase();
         const fileName = file.path.toLowerCase();
+        const filePath = file.path.toLowerCase();
 
+        // Check for excluded file extensions
         const isAllowedExtension = this.#config.allowedExtensions.includes(fileExtension);
-        const isFilteredOut = this.#config.filterKeywords.some(keyword =>
-          fileName.includes(keyword)
-        );
+
+        // Check for filtered keywords in filename
+        const isFilteredOut = this.#config.filterKeywords.some(keyword => {
+          const trimmedKeyword = keyword.trim().toLowerCase();
+
+          // Check if keyword matches entire folder name
+          const folderMatch = filePath.split('/').some(pathSegment =>
+            pathSegment.includes(trimmedKeyword)
+          );
+
+          // Check if keyword matches filename
+          const fileNameMatch = fileName.includes(trimmedKeyword);
+
+          return folderMatch || fileNameMatch;
+        });
 
         return isAllowedExtension && !isFilteredOut;
       });

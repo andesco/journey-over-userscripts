@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.1.1
+// @version       2.2.0
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT

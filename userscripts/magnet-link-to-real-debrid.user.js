@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.1.1
+// @version       2.2.0
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT
@@ -82,7 +82,7 @@
     async #request(method, endpoint, data = null) {
       return new Promise((resolve, reject) => {
         if (this.#config.debugMode) {
-          console.log(`[DEBUG] API Request: ${method} ${endpoint}`, data);
+          console.log(`[DEBUG] API Request: ${method} ${endpoint}`, data || '(no payload)');
         }
 
         GM_xmlhttpRequest({
@@ -101,25 +101,52 @@
               });
             }
 
+            // First check if response exists and has a status
+            if (!response || typeof response.status === 'undefined') {
+              reject(new RealDebridError('Invalid API response received'));
+              return;
+            }
+
             // Check for error status codes
             if (response.status < 200 || response.status >= 300) {
               reject(new RealDebridError(`API Error: ${response.status}`, response.status));
               return;
             }
 
+            // Handle empty or undefined responseText
+            if (!response.responseText) {
+              // For 204 No Content, return empty object
+              if (response.status === 204) {
+                resolve({});
+                return;
+              }
+              reject(new RealDebridError('Empty response received from API'));
+              return;
+            }
+
             try {
-              // Handle potential empty responses
-              const responseText = response.responseText.trim();
-              const result = responseText ? JSON.parse(responseText) : {};
+              // Safely trim the response text
+              const responseText = (response.responseText || '').trim();
+
+              // Handle empty but valid responses
+              if (!responseText) {
+                resolve({});
+                return;
+              }
+
+              const result = JSON.parse(responseText);
               resolve(result);
             } catch (error) {
               console.error('Parsing Error:', error);
-              reject(new RealDebridError('Failed to parse API response', response.status));
+              reject(new RealDebridError(`Failed to parse API response: ${error.message}`, response.status));
             }
           },
           onerror: error => {
             console.error('Request Error:', error);
-            reject(new RealDebridError('Network request failed', error.status))
+            reject(new RealDebridError('Network request failed', error?.status || 0));
+          },
+          ontimeout: () => {
+            reject(new RealDebridError('Request timed out'));
           }
         });
       });

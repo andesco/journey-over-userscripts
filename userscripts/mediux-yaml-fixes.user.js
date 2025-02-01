@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Mediux - Yaml Fixes
-// @version       1.0.1
+// @version       1.0.2
 // @description   Adds fixes and functions to Mediux
 // @author        Journey Over
 // @license       MIT
@@ -12,8 +12,8 @@
 // @run-at        document-end
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=mediux.pro
 // @homepageURL   https://github.com/StylusThemes/Userscripts
-// @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/mediux-titlecards-fix.user.js
-// @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/mediux-titlecards-fix.user.js
+// @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/mediux-yaml-fixes.user.js
+// @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/mediux-yaml-fixes.user.js
 // ==/UserScript==
 
 waitForKeyElements(
@@ -314,10 +314,8 @@ function format_movie_yml(codeblock) {
     }
   );
 
-  // Add metadata header if not present
-  if (!yaml.startsWith('metadata:')) {
-    yaml = `metadata:\n\n${yaml}`;
-  }
+   // Add the 'metadata' header to the YAML content and ensure no extra blank lines
+  yaml = `metadata:\n\n${yaml}`.replace(/metadata:\n\n+/, 'metadata:\n\n');
 
   // Update the code block with the transformed YAML
   codeblock.innerText = yaml;

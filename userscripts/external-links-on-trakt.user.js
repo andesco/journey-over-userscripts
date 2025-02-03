@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       1.0.0
+// @version       1.0.1
 // @description   Add more external links on Trakt
 // @author        Journey Over
 // @license       MIT
@@ -167,6 +167,22 @@
         $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(externalLink).after(', '); // Mobile
       }
     });
+
+    // Add Mediux link if TMDB link exists
+    const tmdbLink = $('#info-wrapper .sidebar .external li a#external-link-tmdb');
+    if (tmdbLink.length > 0) {
+      const tmdbHref = tmdbLink.attr('href');
+      const mediuxMatch = tmdbHref.match(/\/(tv|movie)\/(\d+)/);
+      if (mediuxMatch) {
+        const [, type, id] = mediuxMatch;
+        const mediuxType = type === 'tv' ? 'shows' : 'movies';
+        const mediuxLink = `https://mediux.pro/${mediuxType}/${id}`;
+        const mediuxExternalLink = `<a target="_blank" id="external-link-mediux" href="${mediuxLink}" data-original-title="" title="">Mediux</a>`;
+
+        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(mediuxExternalLink); // Desktop
+        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(mediuxExternalLink).after(', '); // Mobile
+      }
+    }
   };
 
   // Script Execution

@@ -1,21 +1,17 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       1.0.1
-// @description   Add more external links on Trakt
+// @version       2.0.0
+// @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
 // @match         *://trakt.tv/*
-// @require       https://cdn.jsdelivr.net/gh/sizzlemctwizzle/GM_config@43fd0fe4de1166f343883511e53546e87840aeaf/gm_config.min.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@main/libs/utils/index.min.js?version=1.0.0
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@main/libs/wikidata/index.min.js?version=1.0.0
 // @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js
-// @grant         GM_getValue
-// @grant         GM_setValue
 // @grant         GM.deleteValue
 // @grant         GM.getValue
 // @grant         GM.listValues
-// @grant         GM.registerMenuCommand
 // @grant         GM.setValue
 // @grant         GM.xmlHttpRequest
 // @run-at        document-start
@@ -26,123 +22,144 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/external-links-on-trakt.user.js
 // ==/UserScript==
 
-/* global $, GM_config, NodeCreationObserver, UserscriptUtils, Wikidata */
+/* global $, NodeCreationObserver, UserscriptUtils, Wikidata */
 
 (() => {
-  // Constants
-  const cachePeriod = 3_600_000;
+  const cachePeriod = 3_600_000; // Cache duration: 1 hour
   const id = GM.info.script.name.toLowerCase().replace(/\s/g, '-');
+  const CONFIG_KEY = `${id}-config`; // Key for storing script configuration
   const title = `${GM.info.script.name} Settings`;
 
-  // GM_config fields
-  const fields = {
-    logging: {
-      label: 'Logging',
-      section: ['Develop'],
-      labelPos: 'left',
-      type: 'checkbox',
-      default: false
-    },
-    debugging: {
-      label: 'Debugging',
-      labelPos: 'left',
-      type: 'checkbox',
-      default: false
-    },
-    clearCache: {
-      label: 'Clear the cache',
-      type: 'button',
-      click: async () => {
-        const values = await GM.listValues();
-        for (const value of values) {
-          const cache = await GM.getValue(value); // get cache
-          if (cache.time) {
-            GM.deleteValue(value); // delete cache
-          }
-        }
-        UU.log('Cache cleared');
-        GM_config.close();
-      }
+  const defaultConfig = {
+    logging: false, // Enable/disable logging
+    debugging: false, // Enable/disable debugging
+  };
+
+  let scriptConfig = { ...defaultConfig };
+  let UU; // UserscriptUtils instance
+  let wikidata; // Wikidata instance
+
+  // Load saved configuration
+  const loadConfig = async () => {
+    const savedConfig = await GM.getValue(CONFIG_KEY);
+    if (savedConfig) {
+      scriptConfig = { ...defaultConfig, ...savedConfig };
     }
   };
 
-  // Initialize GM_config
-  GM_config.init({
-    id,
-    title,
-    fields,
-    css: ':root{--font:"Montserrat",sans-serif;--background-grey:rgb(29, 29, 29);--black:rgb(0, 0, 0);--dark-grey:rgb(22, 22, 22);--grey:rgb(51, 51, 51);--red:rgb(237, 34, 36);--white:rgb(255, 255, 255)}#external-links-on-trakt *{color:var(--white)!important;font-family:var(--font)!important;font-size:14px!important;font-weight:400!important}#external-links-on-trakt{background:var(--background-grey)!important}#external-links-on-trakt .config_header{font-size:34px!important;line-height:1.1!important;text-shadow:0 0 20px var(--black)!important}#external-links-on-trakt .section_header_holder{background:var(--dark-grey)!important;border:1px solid var(--grey)!important;margin-bottom:1em!important}#external-links-on-trakt .section_header{background:var(--grey)!important;border:1px solid var(--grey)!important;padding:8px!important;text-align:left!important;text-transform:uppercase!important}#external-links-on-trakt .config_var{align-items:center!important;display:flex!important;margin:0!important;padding:15px!important}#external-links-on-trakt .field_label{margin-left:6px!important}#external-links-on-trakt button,#external-links-on-trakt input[type=button]{background:var(--grey)!important;border:1px solid transparent!important;padding:10px 16px!important}#external-links-on-trakt button:hover,#external-links-on-trakt input[type=button]:hover{filter:brightness(85%)!important}#external-links-on-trakt_buttons_holder button{background-color:var(--red)!important}#external-links-on-trakt .reset{margin-right:10px!important}',
-    events: {
-      init: () => {
-        window.addEventListener('load', () => { // Add Google Fonts
-          $('head').append('<style>@import url(https://fonts.googleapis.com/css2?family=Montserrat&display=swap);header#top-nav .navbar-nav.navbar-user:hover #user-menu{max-height:max-content}</style>');
-        });
-        if (GM.info.scriptHandler !== 'Userscripts') { // Add menu command
-          GM.registerMenuCommand('Configure', () => GM_config.open());
-        }
-      },
-      save: () => {
-        window.alert(`${GM.info.script.name}: settings saved`);
-        GM_config.close();
-        window.location.reload(false);
-      }
-    }
-  });
+  // Save current configuration
+  const saveConfig = async () => {
+    await GM.setValue(CONFIG_KEY, scriptConfig);
+  };
 
-  // Initialize NodeCreationObserver
-  NodeCreationObserver.init(id);
-
-  // Initialize UserscriptUtils
-  const UU = new UserscriptUtils({
-    name: GM.info.script.name,
-    version: GM.info.script.version,
-    author: GM.info.script.author,
-    logging: GM_config.get('logging')
-  });
-  UU.init(id);
-
-  // Initialize Wikidata
-  const wikidata = new Wikidata({
-    debug: GM_config.get('debugging')
-  });
-
-  // Functions
-  /**
-  * Adds a link to the menu to access the script configuration
-  **/
+  // Add settings link to Trakt menu
   const addSettingsToMenu = () => {
-    const menu = `<li class=${id}><a href="" onclick="return !1">EL Settings</a>`;
+    const menu = `<li class="${id}"><a href="" onclick="return !1">EL Settings</a></li>`;
     $('div.user-wrapper ul.menu li.divider').last().after(menu);
-    $(`.${id}`).click(() => GM_config.open());
+    $(`.${id}`).click(openConfigModal);
   };
 
-  /**
-  * Clear old data from the cache
-  **/
+  // Open configuration modal
+  const openConfigModal = () => {
+    const configHTML = `
+      <div id="${id}-config">
+        <div class="modal-content">
+          <h2>${title}</h2>
+          <div class="setting-item">
+            <label for="logging">Enable Logging:</label>
+            <label class="switch">
+              <input type="checkbox" id="logging" ${scriptConfig.logging ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="setting-item">
+            <label for="debugging">Enable Debugging:</label>
+            <label class="switch">
+              <input type="checkbox" id="debugging" ${scriptConfig.debugging ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+          <div class="buttons">
+            <button id="save-config">Save and Reload</button>
+            <button id="clear-cache">Clear Cache</button>
+            <button id="close-config">Close</button>
+          </div>
+        </div>
+      </div>
+    `;
+
+    $(configHTML).appendTo('body');
+
+    // Modal styling
+    $('<style>')
+      .prop('type', 'text/css')
+      .html(`
+        #${id}-config { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.6); z-index: 9999; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
+        .modal-content { background-color: #fff; color: #f1f1f1; border: 2px solid #4CAF50; padding: 2rem; width: 400px; max-width: 80%; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); border-radius: 0; }
+        .modal-content h2 { text-align: center; font-size: 1.5rem; margin-bottom: 1.5rem; color: #fff; }
+        .setting-item { margin-bottom: 1.5rem; }
+        .setting-item label { font-size: 1.1rem; margin-right: 10px; color: #fff; }
+        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
+        .switch input { opacity: 0; width: 0; height: 0; }
+        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 34px; }
+        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; border-radius: 50%; left: 4px; bottom: 4px; background-color: white; transition: 0.4s; }
+        input:checked + .slider { background-color: #4CAF50; }
+        input:checked + .slider:before { transform: translateX(26px); }
+        .buttons { display: flex; justify-content: space-between; }
+        .buttons button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.3s ease; }
+        .buttons button:hover { background-color: #45a049; }
+        .buttons button#close-config { background-color: #f44336; }
+        .buttons button#close-config:hover { background-color: #e53935; }
+      `)
+      .appendTo('head');
+
+    // Event listeners for modal buttons
+    $('#save-config').click(async () => {
+      scriptConfig.logging = $('#logging').is(':checked');
+      scriptConfig.debugging = $('#debugging').is(':checked');
+      await saveConfig();
+      $(`#${id}-config`).remove();
+      window.location.reload();
+    });
+
+    $('#clear-cache').click(async () => {
+      await clearCache();
+      $(`#${id}-config`).remove();
+    });
+
+    $('#close-config').click(() => {
+      $(`#${id}-config`).remove();
+    });
+  };
+
+  // Clear outdated cache entries
   const clearOldCache = async () => {
     const values = await GM.listValues();
     for (const value of values) {
-      const cache = await GM.getValue(value); // get cache
-      if ((Date.now() - cache.time) > cachePeriod) {
-        GM.deleteValue(value); // delete cache
+      const cache = await GM.getValue(value);
+      if (cache?.time && (Date.now() - cache.time) > cachePeriod) {
+        GM.deleteValue(value);
       }
     }
   };
 
-  /**
-  * Returns IMDb ID
-  *
-  * @returns {string} IMDb ID
-  **/
+  // Clear all cache except configuration
+  const clearCache = async () => {
+    const values = await GM.listValues();
+    for (const value of values) {
+      if (value === CONFIG_KEY) continue;
+      await GM.deleteValue(value);
+    }
+    UU.log('Cache cleared (excluding config)');
+    window.location.reload();
+  };
+
+  // Extract IMDb ID from Trakt page
   const getID = () => {
     return $('#info-wrapper .sidebar .external li a#external-link-imdb').attr('href').match(/tt\d+/)?.[0];
   };
 
-  /**
-  * Returns item type
-  *
-  * @returns {string} Item type
-  **/
+  // Determine media type (movie or TV show)
   const getType = () => {
     switch ($('meta[property="og:type"]').attr('content')) {
       case 'video.movie':
@@ -154,21 +171,17 @@
     }
   };
 
-  /**
-  * Add external links
-  *
-  * @param {object} links Links data
-  **/
+  // Add external links to the Trakt page
   const addLinks = (links) => {
     $.each(links, (site, link) => {
       if ($(`#info-wrapper .sidebar .external li a#external-link-${site.toLowerCase()}`).length === 0 && link !== undefined && site !== 'Trakt') {
-        const externalLink = `<a target="_blank" id="external-link-${site.toLowerCase().replace(/\s/g, '_')}" href="${link.value}" data-original-title="" title="">${site}</a>`;
-        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(externalLink); // Desktop
-        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(externalLink).after(', '); // Mobile
+        const externalLink = `<a target="_blank" id="external-link-${site.toLowerCase().replace(/\s/g, '_')}" href="${link.value}">${site}</a>`;
+        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(externalLink);
+        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(externalLink).after(', ');
       }
     });
 
-    // Add Mediux link if TMDB link exists
+    // Add Mediux link if TMDB link is present
     const tmdbLink = $('#info-wrapper .sidebar .external li a#external-link-tmdb');
     if (tmdbLink.length > 0) {
       const tmdbHref = tmdbLink.attr('href');
@@ -177,38 +190,51 @@
         const [, type, id] = mediuxMatch;
         const mediuxType = type === 'tv' ? 'shows' : 'movies';
         const mediuxLink = `https://mediux.pro/${mediuxType}/${id}`;
-        const mediuxExternalLink = `<a target="_blank" id="external-link-mediux" href="${mediuxLink}" data-original-title="" title="">Mediux</a>`;
+        const mediuxExternalLink = `<a target="_blank" id="external-link-mediux" href="${mediuxLink}">Mediux</a>`;
 
-        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(mediuxExternalLink); // Desktop
-        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(mediuxExternalLink).after(', '); // Mobile
+        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(mediuxExternalLink);
+        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(mediuxExternalLink).after(', ');
       }
     }
   };
 
-  // Script Execution
-  $(document).ready(() => {
-    NodeCreationObserver.onCreation('body', () => {
-      addSettingsToMenu(); // Add settings to menu
+  // Main initialization
+  $(document).ready(async () => {
+    await loadConfig();
+    UU = new UserscriptUtils({
+      name: GM.info.script.name,
+      version: GM.info.script.version,
+      author: GM.info.script.author,
+      logging: scriptConfig.logging
     });
+    UU.init(id);
+    wikidata = new Wikidata({ debug: scriptConfig.debugging });
+
+    // Add settings to menu when body is loaded
+    NodeCreationObserver.onCreation('body', () => {
+      addSettingsToMenu();
+    });
+
+    // Add external links when the external links section is loaded
     NodeCreationObserver.onCreation('.movies.show #info-wrapper .sidebar .external, .shows.show #info-wrapper .sidebar .external', async () => {
-      await clearOldCache(); // Clear old data from the cache
-      const id = getID(); // Get IMDb ID
-      if (!id) return; // Exit if IMDb ID is not found
+      await clearOldCache();
+      const id = getID();
+      if (!id) return;
       UU.log(`ID is '${id}'`);
-      const type = getType(); // Get item type
-      const cache = await GM.getValue(id); // get cache
-      if (cache !== undefined && ((Date.now() - cache.time) < cachePeriod) && !GM_config.get('debugging')) { // check cache
+      const type = getType();
+      const cache = await GM.getValue(id);
+      if (cache !== undefined && ((Date.now() - cache.time) < cachePeriod) && !scriptConfig.debugging) {
         console.log(`${id} data from cache`);
-        addLinks(cache.links); // add links
+        addLinks(cache.links);
         UU.log(cache.item);
-      } else { // get data from Wikidata
+      } else {
         console.log(`${id} data from Wikidata`);
         try {
           const data = await wikidata.links(id, 'IMDb', type);
           const item = data.item;
           const links = data.links;
-          await GM.setValue(id, { links, item, time: Date.now() }); // set cache
-          addLinks(links); // add links
+          await GM.setValue(id, { links, item, time: Date.now() });
+          addLinks(links);
           UU.log(item);
         } catch (error) {
           UU.error(error.message);

@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       1.3.1
+// @version       2.0.0
 // @description   Makes it easier to copy data from ThePosterDB
 // @author        Journey Over
 // @license       MIT
 // @match         *://theposterdb.com/*
 // @require       https://code.jquery.com/jquery-3.5.1.min.js
 // @grant         GM_setClipboard
+// @grant         GM_addStyle
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=theposterdb.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
 // @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
@@ -16,189 +17,286 @@
 (() => {
   'use strict';
 
-  const STYLES = {
-    notification: {
-      position: 'fixed',
-      top: '10px',
-      right: '10px',
-      padding: '10px',
-      backgroundColor: '#4caf50',
-      color: 'white',
-      zIndex: 10000,
-      borderRadius: '5px',
-      boxShadow: '0 0 10px rgba(0, 0, 0, 0.5)',
+  // Constants and Configuration
+  const CONFIG = {
+    selectors: {
+      gridPosters: '.col-6 .hovereffect',
+      mainPoster: '#main_poster_container',
+      copyLinkBtn: '.copy_poster_link',
+      titleText: 'p.p-0.mb-1.text-break',
+      overlay: 'div.overlay'
     },
-    buttons: {
-      container: {
-        display: 'flex',
-        justifyContent: 'space-between',
-        gap: '5px',
-        marginTop: '5px',
-      },
-      base: {
-        flex: '1',
-        textAlign: 'center',
-        cursor: 'pointer',
-        padding: '5px 10px',
-        borderRadius: '5px',
-        fontSize: '1rem',
-        color: 'white',
-        border: '1px solid',
-        transition: 'background-color 0.3s, transform 0.2s',
-      },
-      link: {
-        backgroundColor: '#28965a',
-        borderColor: '#219150',
-        hoverColor: '#1e7948',
-      },
-      id: {
-        backgroundColor: '#007bff',
-        borderColor: '#0056b3',
-        hoverColor: '#0056b3',
-      },
-      metadata: {
-        cursor: 'pointer',
-        color: 'white',
-        padding: '3px 8px',
-        borderRadius: '4px',
-        fontSize: '0.9rem',
-        textDecoration: 'none',
-        display: 'inline-block',
-        border: '1px solid #5a6268',
-        transition: 'background-color 0.3s, transform 0.2s',
-      },
+    attributes: {
+      posterId: 'data-poster-id',
+      clipboardText: 'data-clipboard-text'
     },
+    urls: {
+      apiBase: 'https://theposterdb.com/api/assets'
+    },
+    notifications: {
+      duration: 3000,
+      messages: {
+        link: 'Link copied to clipboard',
+        id: 'ID copied to clipboard',
+        metadata: 'Metadata copied to clipboard'
+      }
+    }
   };
 
-  class PosterManager {
-    constructor() {
-      this.posters = this.getPosters();
+  // CSS Styles
+  const STYLES = `
+    .tpdb-notification {
+      position: fixed;
+      top: 10px;
+      right: 10px;
+      padding: 10px;
+      background-color: #4caf50;
+      color: white;
+      z-index: 10000;
+      border-radius: 5px;
+      box-shadow: 0 0 10px rgba(0, 0, 0, 0.5);
+      transition: opacity 0.3s ease-in-out;
     }
 
-    getPosters() {
-      return Array.from(document.querySelectorAll('div.hovereffect'))
-        .map(this.extractPosterData)
-        .filter(Boolean)
-        .sort((a, b) => (a.year === null) - (b.year === null) || a.year - b.year);
+    .tpdb-button-container {
+      display: flex;
+      justify-content: space-between;
+      gap: 5px;
+      margin-top: 5px;
     }
 
-    extractPosterData(posterDiv) {
-      const titleTag = posterDiv.querySelector('p.p-0.mb-1.text-break');
-      if (!titleTag) return null;
-
-      const title = titleTag.textContent.trim();
-      const titleClean = title.replace(/\(\d{4}\)/, '').trim();
-      const year = title.match(/\((\d{4})\)/)?.at(1);
-
-      if (titleClean.toLowerCase().includes('collection')) return null;
-
-      const posterId = posterDiv.querySelector('div.overlay')?.getAttribute('data-poster-id');
-      return posterId ? {
-        title: titleClean,
-        year: year ? parseInt(year, 10) : null,
-        urlPoster: `https://theposterdb.com/api/assets/${posterId}`,
-        posterId,
-      } : null;
+    .tpdb-button {
+      flex: 1;
+      text-align: center;
+      cursor: pointer;
+      padding: 5px 10px;
+      border-radius: 5px;
+      font-size: 1rem;
+      color: white;
+      border: 1px solid;
+      transition: all 0.3s ease;
     }
 
-    generateMetadata() {
-      return `metadata:\n\n` +
-        this.posters
-          .map(({ title, year, urlPoster }) =>
-            `  "${title}":\n    match:\n      year: ${year || 'Unknown'}\n    url_poster: "${urlPoster}"`
-          )
-          .join('\n\n');
+    .tpdb-button:hover {
+      transform: scale(1.05);
+    }
+
+    .tpdb-button-link {
+      background-color: #28965a;
+      border-color: #219150;
+    }
+
+    .tpdb-button-link:hover {
+      background-color: #1e7948;
+    }
+
+    .tpdb-button-id {
+      background-color: #007bff;
+      border-color: #0056b3;
+    }
+
+    .tpdb-button-id:hover {
+      background-color: #0056b3;
+    }
+
+    .tpdb-metadata-button {
+      cursor: pointer !important;
+      color: white;
+      background: transparent;
+      padding: 3px 8px;
+      border-radius: 4px;
+      font-size: 0.9rem;
+      text-decoration: none;
+      display: inline-block;
+      border: 1px solid #5a6268;
+      transition: all 0.3s ease;
+    }
+
+    .tpdb-metadata-button:hover {
+      background-color: #5a6268;
+      transform: scale(1.05);
+    }
+  `;
+
+  /**
+   * Utility class for common operations
+   */
+  class Utils {
+    static async fadeOut(element, duration) {
+      element.style.opacity = '0';
+      await new Promise(resolve => setTimeout(resolve, duration));
+      element.remove();
+    }
+
+    static createUrl(posterId) {
+      return `${CONFIG.urls.apiBase}/${posterId}`;
+    }
+
+    static isValidPosterId(posterId) {
+      return posterId && /^\d+$/.test(posterId);
     }
   }
 
+  /**
+   * Handles all notification-related functionality
+   */
+  class NotificationManager {
+    static show(message, duration = CONFIG.notifications.duration) {
+      const notification = document.createElement('div');
+      notification.className = 'tpdb-notification';
+      notification.textContent = message;
+      document.body.appendChild(notification);
+      Utils.fadeOut(notification, duration);
+    }
+  }
+
+  /**
+   * Manages poster data and operations
+   */
+  class PosterData {
+    constructor(element) {
+      this.element = element;
+      this.posterId = this.extractPosterId();
+      this.title = this.extractTitle();
+      this.year = this.extractYear();
+    }
+
+    extractPosterId() {
+      const overlay = this.element.querySelector(CONFIG.selectors.overlay);
+      return overlay?.getAttribute(CONFIG.attributes.posterId);
+    }
+
+    extractTitle() {
+      const titleElement = this.element.querySelector(CONFIG.selectors.titleText);
+      return titleElement?.textContent.trim().replace(/\(\d{4}\)/, '').trim() || '';
+    }
+
+    extractYear() {
+      const titleElement = this.element.querySelector(CONFIG.selectors.titleText);
+      const match = titleElement?.textContent.match(/\((\d{4})\)/);
+      return match ? parseInt(match[1], 10) : null;
+    }
+
+    get apiUrl() {
+      return Utils.createUrl(this.posterId);
+    }
+
+    toMetadata() {
+      return `  "${this.title}":\n    match:\n      year: ${this.year || 'Unknown'}\n    url_poster: "${this.apiUrl}"`;
+    }
+  }
+
+  /**
+   * Manages UI components and interactions
+   */
   class UIManager {
-    constructor(posterManager) {
-      this.posterManager = posterManager;
-      this.setupUI();
+    constructor() {
+      this.setupStyles();
+      this.initializeUI();
     }
 
-    showNotification(message, duration = 3000) {
-      $('<div>')
-        .text(message)
-        .css(STYLES.notification)
-        .appendTo('body')
-        .fadeOut(duration, function() {
-          $(this).remove();
-        });
+    setupStyles() {
+      GM_addStyle(STYLES);
     }
 
-    setupHoverEffects(element, hoverColor) {
-      const originalColor = element.css('backgroundColor');
-      element.hover(
-        () => element.css({
-          backgroundColor: hoverColor,
-          transform: 'scale(1.05)',
-        }),
-        () => element.css({
-          backgroundColor: originalColor,
-          transform: 'scale(1)',
-        })
-      );
-    }
-
-    createButton(text, styles, clickHandler, notificationMessage) {
-      const button = $('<div>')
-        .text(text)
-        .css({ ...STYLES.buttons.base, ...styles })
-        .on('click', () => {
-          clickHandler();
-          this.showNotification(notificationMessage);
-        });
-
-      this.setupHoverEffects(button, styles.hoverColor);
+    createButton(text, className, clickHandler) {
+      const button = document.createElement('button');
+      button.className = `tpdb-button ${className}`;
+      button.textContent = text;
+      button.addEventListener('click', clickHandler);
       return button;
     }
 
-    setupMetadataButton() {
-      const button = $('<a>')
-        .text('Copy Metadata')
-        .css(STYLES.buttons.metadata)
-        .on('click', () => {
-          GM_setClipboard(this.posterManager.generateMetadata());
-          this.showNotification('Metadata copied to clipboard');
-        });
+    createButtonContainer(posterId) {
+      const container = document.createElement('div');
+      container.className = 'tpdb-button-container';
 
-      this.setupHoverEffects(button, STYLES.buttons.metadata.hoverColor);
-      button.appendTo($('div').first());
+      const linkButton = this.createButton('Copy Link', 'tpdb-button-link', () => {
+        GM_setClipboard(Utils.createUrl(posterId));
+        NotificationManager.show(CONFIG.notifications.messages.link);
+      });
+
+      const idButton = this.createButton('Copy ID', 'tpdb-button-id', () => {
+        GM_setClipboard(posterId);
+        NotificationManager.show(CONFIG.notifications.messages.id);
+      });
+
+      container.append(linkButton, idButton);
+      return container;
     }
 
-    setupPosterButtons() {
-      $('.col-6 .hovereffect').each((_, el) => {
-        const posterId = $(el).find('div[data-poster-id]').data('poster-id');
-        if (!posterId) return;
+    setupMainPosterButtons() {
+      const copyLinkBtn = document.querySelector(CONFIG.selectors.copyLinkBtn);
+      if (!copyLinkBtn) return;
 
-        const container = $('<div>').css(STYLES.buttons.container);
+      const posterId = copyLinkBtn.getAttribute(CONFIG.attributes.posterId);
+      if (!Utils.isValidPosterId(posterId)) return;
 
-        this.createButton(
-          'Copy Link',
-          STYLES.buttons.link,
-          () => GM_setClipboard(`https://theposterdb.com/api/assets/${posterId}`),
-          'Link copied to clipboard'
-        ).appendTo(container);
+      // Modify existing copy link button
+      copyLinkBtn.setAttribute(CONFIG.attributes.clipboardText, Utils.createUrl(posterId));
+      copyLinkBtn.addEventListener('click', () => {
+        NotificationManager.show(CONFIG.notifications.messages.link);
+      });
 
-        this.createButton(
-          'Copy ID',
-          STYLES.buttons.id,
-          () => GM_setClipboard(posterId),
-          'ID copied to clipboard'
-        ).appendTo(container);
+      // Add new ID button
+      const idButton = document.createElement('button');
+      idButton.className = 'btn btn-outline-warning clipboard';
+      idButton.setAttribute(CONFIG.attributes.clipboardText, posterId);
+      idButton.setAttribute('data-toggle', 'tooltip');
+      idButton.setAttribute('data-placement', 'top');
+      idButton.setAttribute('title', 'Copy Poster ID');
+      idButton.innerHTML = '<span class="d-none">Copy ID</span> <i class="fas fa-hashtag"></i>';
 
-        $(el).parent().append(container);
+      idButton.addEventListener('click', () => {
+        NotificationManager.show(CONFIG.notifications.messages.id);
+      });
+
+      copyLinkBtn.parentNode.insertBefore(idButton, copyLinkBtn.nextSibling);
+
+      // Initialize clipboard.js if available
+      if (window.ClipboardJS) {
+        new ClipboardJS(idButton);
+      }
+    }
+
+    setupGridPosters() {
+      document.querySelectorAll(CONFIG.selectors.gridPosters).forEach(element => {
+        const posterData = new PosterData(element);
+        if (!Utils.isValidPosterId(posterData.posterId)) return;
+
+        const container = this.createButtonContainer(posterData.posterId);
+        element.parentElement.appendChild(container);
       });
     }
 
-    setupUI() {
+    setupMetadataButton() {
+      const posters = Array.from(document.querySelectorAll(CONFIG.selectors.gridPosters))
+        .map(element => new PosterData(element))
+        .filter(poster => Utils.isValidPosterId(poster.posterId));
+
+      if (posters.length === 0) return;
+
+      const button = document.createElement('button');
+      button.className = 'tpdb-metadata-button';
+      button.textContent = 'Copy Metadata';
+      button.addEventListener('click', () => {
+        const metadata = `metadata:\n\n${posters.map(p => p.toMetadata()).join('\n\n')}`;
+        GM_setClipboard(metadata);
+        NotificationManager.show(CONFIG.notifications.messages.metadata);
+      });
+
+      document.querySelector('div')?.appendChild(button);
+    }
+
+    initializeUI() {
+      this.setupMainPosterButtons();
+      this.setupGridPosters();
       this.setupMetadataButton();
-      this.setupPosterButtons();
     }
   }
 
-  // Initialize
-  const posterManager = new PosterManager();
-  new UIManager(posterManager);
+  // Initialize when DOM is ready
+  $(document).ready(() => {
+    new UIManager();
+  });
 })();

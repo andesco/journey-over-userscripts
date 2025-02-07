@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       2.0.0
+// @version       2.0.1
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -177,7 +177,6 @@
       if ($(`#info-wrapper .sidebar .external li a#external-link-${site.toLowerCase()}`).length === 0 && link !== undefined && site !== 'Trakt') {
         const externalLink = `<a target="_blank" id="external-link-${site.toLowerCase().replace(/\s/g, '_')}" href="${link.value}">${site}</a>`;
         $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(externalLink);
-        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(externalLink).after(', ');
       }
     });
 
@@ -193,7 +192,6 @@
         const mediuxExternalLink = `<a target="_blank" id="external-link-mediux" href="${mediuxLink}">Mediux</a>`;
 
         $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(mediuxExternalLink);
-        $('#info-wrapper .info .additional-stats li:last-child a:not([data-site]):not([data-method]):not([data-id])').last().after(mediuxExternalLink).after(', ');
       }
     }
   };

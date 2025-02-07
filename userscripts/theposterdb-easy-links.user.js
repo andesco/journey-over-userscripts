@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       2.0.0
+// @version       2.0.1
 // @description   Makes it easier to copy data from ThePosterDB
 // @author        Journey Over
 // @license       MIT
@@ -146,7 +146,11 @@
       notification.className = 'tpdb-notification';
       notification.textContent = message;
       document.body.appendChild(notification);
-      Utils.fadeOut(notification, duration);
+
+      // Wait for the notification to be visible for `duration` ms before fading out
+      setTimeout(() => {
+        Utils.fadeOut(notification, 300); // Fade out over 300ms
+      }, duration);
     }
   }
 

@@ -1,11 +1,10 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       2.0.1
+// @version       2.1.0
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
 // @match         *://trakt.tv/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@main/libs/utils/index.min.js?version=1.0.0
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@main/libs/wikidata/index.min.js?version=1.0.0
 // @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.6.0/dist/jquery.min.js
@@ -22,222 +21,512 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/external-links-on-trakt.user.js
 // ==/UserScript==
 
-/* global $, NodeCreationObserver, UserscriptUtils, Wikidata */
+/* global $, NodeCreationObserver, Wikidata */
 
 (() => {
-  const cachePeriod = 3_600_000; // Cache duration: 1 hour
-  const id = GM.info.script.name.toLowerCase().replace(/\s/g, '-');
-  const CONFIG_KEY = `${id}-config`; // Key for storing script configuration
-  const title = `${GM.info.script.name} Settings`;
-
-  const defaultConfig = {
-    logging: false, // Enable/disable logging
-    debugging: false, // Enable/disable debugging
+  const CONSTANTS = {
+    CACHE_DURATION: 36E5, // 1 hour in milliseconds
+    SCRIPT_ID: GM.info.script.name.toLowerCase().replace(/\s/g, '-'),
+    CONFIG_KEY: 'enhanced-trakt-links-config',
+    TITLE: `${GM.info.script.name} Settings`,
+    SCRIPT_NAME: GM.info.script.name
   };
 
-  let scriptConfig = { ...defaultConfig };
-  let UU; // UserscriptUtils instance
-  let wikidata; // Wikidata instance
+  // Link providers configuration
+  const LINK_PROVIDERS = {
+    BROCOFLIX: {
+      id: 'brocoflix',
+      name: 'BrocoFlix',
+      description:
+        'Provides a direct link to the BrocoFlix streaming page for the selected title.',
+      getUrl: ({ tmdbId, type }) =>
+        `https://brocoflix.com/pages/info?id=${tmdbId}&type=${type === 'tv' ? 'tv' : 'movie'}`,
+      requires: ['tmdbId'],
+    },
+    CINEBY: {
+      id: 'cineby',
+      name: 'Cineby',
+      description:
+        'Provides a direct link to the Cineby streaming page for the selected title.',
+      getUrl: ({ tmdbId, type, season, episode }) => {
+        const baseUrl = 'https://www.cineby.app';
+        const mediaType = type === 'tv' ? 'tv' : 'movie';
+        return `${baseUrl}/${mediaType}/${tmdbId}${
+          type === 'tv' ? `/${season}/${episode}` : ''
+        }`;
+      },
+      requires: ['tmdbId'],
+    },
+    DMM: {
+      id: 'dmm',
+      name: 'DMM',
+      description:
+        'Provides a direct link to Debrid Media Manager for the selected title.',
+      getUrl: ({ imdbId, type, season }) => {
+        const baseUrl = 'https://debridmediamanager.com';
+        const mediaType = type === 'tv' ? 'show' : 'movie';
+        return `${baseUrl}/${mediaType}/${imdbId}${type === 'tv' ? `/${season}` : ''}`;
+      },
+      requires: ['imdbId'],
+    },
+    FREEK: {
+      id: 'freek',
+      name: 'Freek',
+      description:
+        'Provides a direct link to the Freek streaming page for the selected title.',
+      getUrl: ({ tmdbId, type, season, episode }) => {
+        const baseUrl = 'https://freek.to';
+        const mediaType = type === 'tv' ? 'tv' : 'movie';
+        return `${baseUrl}/watch/${mediaType}/${tmdbId}${
+          type === 'tv' ? `?season=${season}&ep=${episode}` : ''
+        }`;
+      },
+      requires: ['tmdbId'],
+    },
+    MEDIUX: {
+      id: 'mediux',
+      name: 'Mediux',
+      description:
+        'Provides a direct link to the Mediux Poster site for the selected title.',
+      getUrl: ({ tmdbId, type }) =>
+        `https://mediux.pro/${type === 'tv' ? 'shows' : 'movies'}/${tmdbId}`,
+      requires: ['tmdbId'],
+    },
+    PSTREAM: {
+      id: 'pstream',
+      name: 'P-Stream',
+      description:
+        'Provides a direct link to the P-Stream embedded player for the selected title.',
+      getUrl: ({ tmdbId, type, season, episode }) => {
+        const baseUrl = 'https://iframe.pstream.org';
+        const mediaType = type === 'tv' ? 'tv' : 'movie';
+        return `${baseUrl}/embed/tmdb-${mediaType}-${tmdbId}${
+          type === 'tv' ? `/${season}/${episode}` : ''
+        }`;
+      },
+      requires: ['tmdbId'],
+    },
+    RIVE: {
+      id: 'rive',
+      name: 'Rive',
+      description:
+        'Provides a direct link to the Rive streaming page for the selected title.',
+      getUrl: ({ tmdbId, type, season, episode }) => {
+        const baseUrl = 'https://rivestream.live';
+        const mediaType = type === 'tv' ? 'tv' : 'movie';
+        return `${baseUrl}/watch?type=${mediaType}&id=${tmdbId}${
+          type === 'tv' ? `&season=${season}&episode=${episode}` : ''
+        }`;
+      },
+      requires: ['tmdbId'],
+    },
+    WOVIE: {
+      id: 'wovie',
+      name: 'Wovie',
+      description:
+        'Provides a direct link to the Wovie streaming page for the selected title.',
+      getUrl: ({ tmdbId, type, sanitizedTitle, season, episode }) => {
+        const baseUrl = 'https://wovie.vercel.app';
+        const mediaType = type === 'tv' ? 'tv' : 'movie';
+        return `${baseUrl}/play/${mediaType}/${tmdbId}/${sanitizedTitle}${
+          type === 'tv' ? `?season=${season}&episode=${episode}` : ''
+        }`;
+      },
+      requires: ['tmdbId'],
+    },
+    XPRIME: {
+      id: 'xprime',
+      name: 'XPrime',
+      description:
+        'Provides a direct link to the XPrime streaming page for the selected title.',
+      getUrl: ({ tmdbId, type, season, episode }) => {
+        const baseUrl = 'https://xprime.tv';
+        return `${baseUrl}/watch/${tmdbId}${
+          type === 'tv' ? `/${season}/${episode}` : ''
+        }`;
+      },
+      requires: ['tmdbId'],
+    },
+  };
 
-  // Load saved configuration
-  const loadConfig = async () => {
-    const savedConfig = await GM.getValue(CONFIG_KEY);
-    if (savedConfig) {
-      scriptConfig = { ...defaultConfig, ...savedConfig };
+  // Default configuration
+  const DEFAULT_CONFIG = {
+    logging: false,    // Controls info/warn/error logs
+    debugging: false,  // Controls debug logs
+    enabledLinks: Object.fromEntries(
+      Object.values(LINK_PROVIDERS).map(({ id }) => [id, false])
+    )
+  };
+
+  class DirectLinksProvider {
+    constructor(mediaInfo, config, logger) {
+      this.mediaInfo = mediaInfo;
+      this.config = config;
+      this.logger = logger;
     }
-  };
 
-  // Save current configuration
-  const saveConfig = async () => {
-    await GM.setValue(CONFIG_KEY, scriptConfig);
-  };
-
-  // Add settings link to Trakt menu
-  const addSettingsToMenu = () => {
-    const menu = `<li class="${id}"><a href="" onclick="return !1">EL Settings</a></li>`;
-    $('div.user-wrapper ul.menu li.divider').last().after(menu);
-    $(`.${id}`).click(openConfigModal);
-  };
-
-  // Open configuration modal
-  const openConfigModal = () => {
-    const configHTML = `
-      <div id="${id}-config">
-        <div class="modal-content">
-          <h2>${title}</h2>
-          <div class="setting-item">
-            <label for="logging">Enable Logging:</label>
-            <label class="switch">
-              <input type="checkbox" id="logging" ${scriptConfig.logging ? 'checked' : ''}>
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="setting-item">
-            <label for="debugging">Enable Debugging:</label>
-            <label class="switch">
-              <input type="checkbox" id="debugging" ${scriptConfig.debugging ? 'checked' : ''}>
-              <span class="slider"></span>
-            </label>
-          </div>
-          <div class="buttons">
-            <button id="save-config">Save and Reload</button>
-            <button id="clear-cache">Clear Cache</button>
-            <button id="close-config">Close</button>
-          </div>
-        </div>
-      </div>
-    `;
-
-    $(configHTML).appendTo('body');
-
-    // Modal styling
-    $('<style>')
-      .prop('type', 'text/css')
-      .html(`
-        #${id}-config { position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background-color: rgba(0, 0, 0, 0.6); z-index: 9999; width: 100%; height: 100%; display: flex; justify-content: center; align-items: center; }
-        .modal-content { background-color: #fff; color: #f1f1f1; border: 2px solid #4CAF50; padding: 2rem; width: 400px; max-width: 80%; box-shadow: 0 5px 15px rgba(0, 0, 0, 0.3); border-radius: 0; }
-        .modal-content h2 { text-align: center; font-size: 1.5rem; margin-bottom: 1.5rem; color: #fff; }
-        .setting-item { margin-bottom: 1.5rem; }
-        .setting-item label { font-size: 1.1rem; margin-right: 10px; color: #fff; }
-        .switch { position: relative; display: inline-block; width: 50px; height: 24px; }
-        .switch input { opacity: 0; width: 0; height: 0; }
-        .slider { position: absolute; cursor: pointer; top: 0; left: 0; right: 0; bottom: 0; background-color: #ccc; transition: 0.4s; border-radius: 34px; }
-        .slider:before { position: absolute; content: ""; height: 16px; width: 16px; border-radius: 50%; left: 4px; bottom: 4px; background-color: white; transition: 0.4s; }
-        input:checked + .slider { background-color: #4CAF50; }
-        input:checked + .slider:before { transform: translateX(26px); }
-        .buttons { display: flex; justify-content: space-between; }
-        .buttons button { background-color: #4CAF50; color: white; padding: 10px 20px; border: none; border-radius: 6px; cursor: pointer; transition: background-color 0.3s ease; }
-        .buttons button:hover { background-color: #45a049; }
-        .buttons button#close-config { background-color: #f44336; }
-        .buttons button#close-config:hover { background-color: #e53935; }
-      `)
-      .appendTo('head');
-
-    // Event listeners for modal buttons
-    $('#save-config').click(async () => {
-      scriptConfig.logging = $('#logging').is(':checked');
-      scriptConfig.debugging = $('#debugging').is(':checked');
-      await saveConfig();
-      $(`#${id}-config`).remove();
-      window.location.reload();
-    });
-
-    $('#clear-cache').click(async () => {
-      await clearCache();
-      $(`#${id}-config`).remove();
-    });
-
-    $('#close-config').click(() => {
-      $(`#${id}-config`).remove();
-    });
-  };
-
-  // Clear outdated cache entries
-  const clearOldCache = async () => {
-    const values = await GM.listValues();
-    for (const value of values) {
-      const cache = await GM.getValue(value);
-      if (cache?.time && (Date.now() - cache.time) > cachePeriod) {
-        GM.deleteValue(value);
-      }
-    }
-  };
-
-  // Clear all cache except configuration
-  const clearCache = async () => {
-    const values = await GM.listValues();
-    for (const value of values) {
-      if (value === CONFIG_KEY) continue;
-      await GM.deleteValue(value);
-    }
-    UU.log('Cache cleared (excluding config)');
-    window.location.reload();
-  };
-
-  // Extract IMDb ID from Trakt page
-  const getID = () => {
-    return $('#info-wrapper .sidebar .external li a#external-link-imdb').attr('href').match(/tt\d+/)?.[0];
-  };
-
-  // Determine media type (movie or TV show)
-  const getType = () => {
-    switch ($('meta[property="og:type"]').attr('content')) {
-      case 'video.movie':
-        return 'movie';
-      case 'video.tv_show':
-        return 'tv';
-      default:
-        return;
-    }
-  };
-
-  // Add external links to the Trakt page
-  const addLinks = (links) => {
-    $.each(links, (site, link) => {
-      if ($(`#info-wrapper .sidebar .external li a#external-link-${site.toLowerCase()}`).length === 0 && link !== undefined && site !== 'Trakt') {
-        const externalLink = `<a target="_blank" id="external-link-${site.toLowerCase().replace(/\s/g, '_')}" href="${link.value}">${site}</a>`;
-        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(externalLink);
-      }
-    });
-
-    // Add Mediux link if TMDB link is present
-    const tmdbLink = $('#info-wrapper .sidebar .external li a#external-link-tmdb');
-    if (tmdbLink.length > 0) {
-      const tmdbHref = tmdbLink.attr('href');
-      const mediuxMatch = tmdbHref.match(/\/(tv|movie)\/(\d+)/);
-      if (mediuxMatch) {
-        const [, type, id] = mediuxMatch;
-        const mediuxType = type === 'tv' ? 'shows' : 'movies';
-        const mediuxLink = `https://mediux.pro/${mediuxType}/${id}`;
-        const mediuxExternalLink = `<a target="_blank" id="external-link-mediux" href="${mediuxLink}">Mediux</a>`;
-
-        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(mediuxExternalLink);
-      }
-    }
-  };
-
-  // Main initialization
-  $(document).ready(async () => {
-    await loadConfig();
-    UU = new UserscriptUtils({
-      name: GM.info.script.name,
-      version: GM.info.script.version,
-      author: GM.info.script.author,
-      logging: scriptConfig.logging
-    });
-    UU.init(id);
-    wikidata = new Wikidata({ debug: scriptConfig.debugging });
-
-    // Add settings to menu when body is loaded
-    NodeCreationObserver.onCreation('body', () => {
-      addSettingsToMenu();
-    });
-
-    // Add external links when the external links section is loaded
-    NodeCreationObserver.onCreation('.movies.show #info-wrapper .sidebar .external, .shows.show #info-wrapper .sidebar .external', async () => {
-      await clearOldCache();
-      const id = getID();
-      if (!id) return;
-      UU.log(`ID is '${id}'`);
-      const type = getType();
-      const cache = await GM.getValue(id);
-      if (cache !== undefined && ((Date.now() - cache.time) < cachePeriod) && !scriptConfig.debugging) {
-        console.log(`${id} data from cache`);
-        addLinks(cache.links);
-        UU.log(cache.item);
-      } else {
-        console.log(`${id} data from Wikidata`);
+    addLinks() {
+      Object.values(LINK_PROVIDERS).forEach(provider => {
         try {
-          const data = await wikidata.links(id, 'IMDb', type);
-          const item = data.item;
-          const links = data.links;
-          await GM.setValue(id, { links, item, time: Date.now() });
-          addLinks(links);
-          UU.log(item);
+          if (this.shouldAddProvider(provider)) {
+            this.createLink(provider);
+          }
         } catch (error) {
-          UU.error(error.message);
+          this.logger.error(`Error creating ${provider.name} link: ${error.message}`);
+        }
+      });
+    }
+
+    shouldAddProvider(provider) {
+      const isConfigurable = provider.id && this.config.enabledLinks[provider.id];
+      const isNonConfigurable = !provider.id;
+      return (isConfigurable || isNonConfigurable) &&
+             this.areRequirementsMet(provider.requires);
+    }
+
+    areRequirementsMet(requiredFields) {
+      return requiredFields.every(field => this.mediaInfo[field]);
+    }
+
+    createLink(provider) {
+      const url = provider.getUrl(this.mediaInfo);
+      const linkId = `external-link-${provider.name.toLowerCase().replace(/\s/g, '_')}`;
+      const linkHtml = `<a target="_blank" id="${linkId}" href="${url}" data-original-title="" title="">${provider.name}</a>`;
+      $('.external li').append(linkHtml);
+      this.logger.debug(`Added ${provider.name} link: ${url}`);
+    }
+  }
+
+  class TraktExternalLinks {
+    constructor() {
+      this.config = { ...DEFAULT_CONFIG };
+      this.wikidata = null;
+
+      // Bind methods to ensure proper `this` context
+      this.getMediaInfo = this.getMediaInfo.bind(this);
+      this.handleExternalLinks = this.handleExternalLinks.bind(this);
+    }
+
+    // Logging methods
+    info(message, ...args) {
+      if (this.config.logging) {
+        console.info(`${CONSTANTS.SCRIPT_NAME}: INFO: ${message}`, ...args);
+      }
+    }
+
+    warn(message, ...args) {
+      if (this.config.logging) {
+        console.warn(`${CONSTANTS.SCRIPT_NAME}: WARN: ${message}`, ...args);
+      }
+    }
+
+    error(message, ...args) {
+      if (this.config.logging) {
+        console.error(`${CONSTANTS.SCRIPT_NAME}: ERROR: ${message}`, ...args);
+      }
+    }
+
+    debug(message, ...args) {
+      if (this.config.debugging) {
+        console.debug(`${CONSTANTS.SCRIPT_NAME}: DEBUG: ${message}`, ...args);
+      }
+    }
+
+    // Initialization and core functionality
+    async init() {
+      await this.loadConfig();
+      this.initializeWikidata();
+      this.logInitialization();
+      this.setupEventListeners();
+    }
+
+    logInitialization() {
+      const { version, author } = GM.info.script;
+      const headerStyle = 'color:red;font-weight:bold;font-size:18px;';
+      const versionText = version ? `v${version} ` : '';
+
+      console.log(
+        `%c${CONSTANTS.SCRIPT_NAME}\n%c${versionText}by ${author} is running!`,
+        headerStyle,
+        ''
+      );
+
+      this.info('Script initialized');
+      this.debug('Debugging mode enabled');
+      this.debug('Current configuration:', this.config);
+    }
+
+    async loadConfig() {
+      const savedConfig = await GM.getValue(CONSTANTS.CONFIG_KEY);
+      if (savedConfig) {
+        this.config = { ...DEFAULT_CONFIG, ...savedConfig };
+      }
+    }
+
+    initializeWikidata() {
+      this.wikidata = new Wikidata({ debug: this.config.debugging });
+    }
+
+    setupEventListeners() {
+      NodeCreationObserver.onCreation('.sidebar .external', this.handleExternalLinks);
+      NodeCreationObserver.onCreation('body', () => this.addSettingsMenu());
+    }
+
+    async handleExternalLinks() {
+      try {
+        await this.clearExpiredCache();
+        const mediaInfo = this.getMediaInfo();
+
+        if (mediaInfo.imdbId) {
+          await this.processWikidataLinks(mediaInfo);
+        }
+
+        this.addDirectLinks(mediaInfo);
+      } catch (error) {
+        this.error(`Failed handling external links: ${error.message}`);
+      }
+    }
+
+    getMediaInfo() {
+      const pathParts = location.pathname.split('/');
+      const type = pathParts[1] === 'movies' ? 'movie' : 'tv';
+      const sanitizedTitle = pathParts[2] === 'seasons' || pathParts[2] === 'episodes'
+        ? pathParts[2]
+        : this.sanitizeTitle(pathParts[2]);
+
+      const imdbLink = $('#external-link-imdb');
+      const tmdbLink = $('#external-link-tmdb');
+
+      const tmdbDetails = tmdbLink.length ? this.extractDetailsFromUrl(tmdbLink.attr('href')) : null;
+      const imdbId = imdbLink.length ? imdbLink.attr('href')?.match(/tt\d+/)?.[0] : null;
+
+      return {
+        type,
+        sanitizedTitle,
+        imdbId,
+        tmdbId: tmdbDetails?.tmdbId,
+        season: tmdbDetails?.season,
+        episode: tmdbDetails?.episode
+      };
+    }
+
+    sanitizeTitle(title) {
+      try {
+        return title.replace(/-\d{4}$/, '');
+      } catch (error) {
+        this.error(`Failed to sanitize title: ${error.message}`);
+        return title;
+      }
+    }
+
+    extractDetailsFromUrl(url) {
+      try {
+        const parts = url.split('/');
+        return {
+          tmdbId: parts[4],
+          season: parts[6] || '1',
+          episode: parts[8] || '1'
+        };
+      } catch (error) {
+        this.error(`Failed to extract URL details: ${error.message}`);
+        return {
+          tmdbId: null,
+          season: '1',
+          episode: '1'
+        };
+      }
+    }
+
+    async processWikidataLinks(mediaInfo) {
+      const cache = await GM.getValue(mediaInfo.imdbId);
+
+      if (this.isCacheValid(cache)) {
+        this.debug('Using cached Wikidata data');
+        this.addWikidataLinks(cache.links);
+        return;
+      }
+
+      try {
+        const data = await this.wikidata.links(mediaInfo.imdbId, 'IMDb', mediaInfo.type);
+        await GM.setValue(mediaInfo.imdbId, {
+          links: data.links,
+          item: data.item,
+          time: Date.now()
+        });
+        this.addWikidataLinks(data.links);
+        this.debug('New Wikidata data fetched:', data.item);
+      } catch (error) {
+        this.error(`Failed fetching Wikidata links: ${error.message}`);
+      }
+    }
+
+    addDirectLinks(mediaInfo) {
+      try {
+        const provider = new DirectLinksProvider(mediaInfo, this.config, {
+          error: this.error.bind(this),
+          debug: this.debug.bind(this)
+        });
+        provider.addLinks();
+        this.debug('Direct links added successfully');
+      } catch (error) {
+        this.error(`Failed adding direct links: ${error.message}`);
+      }
+    }
+
+    addWikidataLinks(links) {
+      Object.entries(links).forEach(([site, link]) => {
+        if (site !== 'Trakt' && link?.value && !this.linkExists(site)) {
+          this.createExternalLink(site, link.value);
+        }
+      });
+    }
+
+    isCacheValid(cache) {
+      return cache &&
+             !this.config.debugging &&
+             (Date.now() - cache.time) < CONSTANTS.CACHE_DURATION;
+    }
+
+    linkExists(site) {
+      return $(`#info-wrapper .sidebar .external li a#external-link-${site.toLowerCase().replace(/\s/g, '_')}`).length > 0;
+    }
+
+    createExternalLink(site, url) {
+      const linkId = `external-link-${site.toLowerCase().replace(/\s/g, '_')}`;
+      const link = `<a target="_blank" id="${linkId}" href="${url}" data-original-title="" title="">${site}</a>`;
+      $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(link);
+    }
+
+    async clearExpiredCache() {
+      const values = await GM.listValues();
+      for (const value of values) {
+        if (value === CONSTANTS.CONFIG_KEY) continue;
+        const cache = await GM.getValue(value);
+        if (cache?.time && (Date.now() - cache.time) > CONSTANTS.CACHE_DURATION) {
+          await GM.deleteValue(value);
         }
       }
-    });
+    }
+
+    addSettingsMenu() {
+      const menuItem = `<li class="${CONSTANTS.SCRIPT_ID}"><a href="javascript:void(0)">EL Settings</a></li>`;
+      $('div.user-wrapper ul.menu li.divider').last().after(menuItem);
+      $(`.${CONSTANTS.SCRIPT_ID}`).click(() => this.openSettingsModal());
+    }
+
+    openSettingsModal() {
+      const modalHTML = this.generateSettingsModalHTML();
+      $(modalHTML).appendTo('body');
+      this.addModalStyles();
+      this.setupModalEventListeners();
+    }
+
+    generateSettingsModalHTML() {
+      return `
+        <div id="${CONSTANTS.SCRIPT_ID}-config">
+          <div class="modal-content">
+            <div class="modal-header">
+              <h2>${CONSTANTS.TITLE}</h2>
+              <button class="close-button">&times;</button>
+            </div>
+
+            <div class="settings-sections">
+              <div class="settings-section">
+                <h3><i class="fas fa-cog"></i> General Settings</h3>
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label for="logging">Enable Logging</label>
+                    <div class="description">Show basic logs (info, warnings, errors) in console</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="logging" ${this.config.logging ? 'checked' : ''}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+                <div class="setting-item">
+                  <div class="setting-info">
+                    <label for="debugging">Enable Debugging</label>
+                    <div class="description">Show detailed debug information in console</div>
+                  </div>
+                  <label class="switch">
+                    <input type="checkbox" id="debugging" ${this.config.debugging ? 'checked' : ''}>
+                    <span class="slider"></span>
+                  </label>
+                </div>
+              </div>
+
+              <div class="settings-section">
+                <h3><i class="fas fa-external-link-alt"></i> Extra External Links</h3>
+                ${this.generateExternalLinksSettings()}
+              </div>
+            </div>
+
+            <div class="modal-footer">
+              <button class="btn save" id="save-config">Save & Reload</button>
+              <button class="btn warning" id="clear-cache">Clear Cache</button>
+            </div>
+          </div>
+        </div>
+      `;
+    }
+
+    generateExternalLinksSettings() {
+      return Object.values(LINK_PROVIDERS)
+        .filter(provider => provider.id)
+        .map(provider => `
+          <div class="setting-item">
+            <div class="setting-info">
+              <label for="${provider.id}">${provider.name}</label>
+              <div class="description">${provider.description}</div>
+            </div>
+            <label class="switch">
+              <input type="checkbox" id="${provider.id}"
+                ${this.config.enabledLinks[provider.id] ? 'checked' : ''}>
+              <span class="slider"></span>
+            </label>
+          </div>
+        `).join('');
+    }
+
+    addModalStyles() {
+      const styles = `#${CONSTANTS.SCRIPT_ID}-config{position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.7);z-index:9999;display:flex;justify-content:center;align-items:center}.modal-content{background:#2b2b2b;color:#fff;border-radius:8px;width:450px;max-width:90%;box-shadow:0 8px 32px rgba(0,0,0,0.3)}.modal-header{padding:1.5rem;border-bottom:1px solid #404040;position:relative;display:flex;justify-content:space-between;align-items:center}.modal-header h2{margin:0;font-size:1.4rem;color:#fff}.close-button{background:none;border:none;color:#fff;font-size:1.5rem;cursor:pointer;padding:0 0.5rem}.settings-sections{padding:1.5rem;max-height:60vh;overflow-y:auto}.settings-section{margin-bottom:2rem}.settings-section h3{font-size:1.1rem;margin:0 0 1.2rem;color:#fff;display:flex;align-items:center;gap:0.5rem}.setting-item{display:flex;justify-content:space-between;align-items:center;padding:0.8rem 0;border-bottom:1px solid #404040}.setting-info{flex-grow:1;margin-right:1.5rem}.setting-info label{display:block;font-weight:500;margin-bottom:0.3rem}.description{color:#a0a0a0;font-size:0.9rem;line-height:1.4}.switch{flex-shrink:0}.modal-footer{padding:1.5rem;border-top:1px solid #404040;display:flex;gap:0.8rem;justify-content:flex-end}.btn{padding:0.6rem 1.2rem;border-radius:4px;border:none;cursor:pointer;font-weight:500;transition:all 0.2s ease}.btn.save{background:#4CAF50;color:#fff}.btn.warning{background:#f44336;color:#fff}.btn:hover{opacity:0.9}`;
+      $('<style>').prop('type', 'text/css').html(styles).appendTo('head');
+    }
+
+    setupModalEventListeners() {
+      $('.close-button').click(() => $(`#${CONSTANTS.SCRIPT_ID}-config`).remove());
+
+      $('#save-config').click(async () => {
+        this.config.logging = $('#logging').is(':checked');
+        this.config.debugging = $('#debugging').is(':checked');
+
+        Object.values(LINK_PROVIDERS)
+          .filter(provider => provider.id)
+          .forEach(provider => {
+            this.config.enabledLinks[provider.id] = $(`#${provider.id}`).is(':checked');
+          });
+
+        await GM.setValue(CONSTANTS.CONFIG_KEY, this.config);
+        $(`#${CONSTANTS.SCRIPT_ID}-config`).remove();
+        window.location.reload();
+      });
+
+      $('#clear-cache').click(async () => {
+        const values = await GM.listValues();
+        for (const value of values) {
+          if (value === CONSTANTS.CONFIG_KEY) continue;
+          await GM.deleteValue(value);
+        }
+        this.info('Cache cleared (excluding config)');
+        $(`#${CONSTANTS.SCRIPT_ID}-config`).remove();
+        window.location.reload();
+      });
+    }
+  }
+
+  // Initialize the script when the document is ready
+  $(document).ready(async () => {
+    const traktLinks = new TraktExternalLinks();
+    await traktLinks.init();
   });
 })();

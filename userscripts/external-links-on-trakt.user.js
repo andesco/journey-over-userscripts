@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       2.1.0
+// @version       2.2.0
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -151,60 +151,18 @@
 
   // Default configuration
   const DEFAULT_CONFIG = {
-    logging: false,    // Controls info/warn/error logs
-    debugging: false,  // Controls debug logs
+    logging: false,
+    debugging: false,
     enabledLinks: Object.fromEntries(
       Object.values(LINK_PROVIDERS).map(({ id }) => [id, false])
     )
   };
 
-  class DirectLinksProvider {
-    constructor(mediaInfo, config, logger) {
-      this.mediaInfo = mediaInfo;
-      this.config = config;
-      this.logger = logger;
-    }
-
-    addLinks() {
-      Object.values(LINK_PROVIDERS).forEach(provider => {
-        try {
-          if (this.shouldAddProvider(provider)) {
-            this.createLink(provider);
-          }
-        } catch (error) {
-          this.logger.error(`Error creating ${provider.name} link: ${error.message}`);
-        }
-      });
-    }
-
-    shouldAddProvider(provider) {
-      const isConfigurable = provider.id && this.config.enabledLinks[provider.id];
-      const isNonConfigurable = !provider.id;
-      return (isConfigurable || isNonConfigurable) &&
-             this.areRequirementsMet(provider.requires);
-    }
-
-    areRequirementsMet(requiredFields) {
-      return requiredFields.every(field => this.mediaInfo[field]);
-    }
-
-    createLink(provider) {
-      const url = provider.getUrl(this.mediaInfo);
-      const linkId = `external-link-${provider.name.toLowerCase().replace(/\s/g, '_')}`;
-      const linkHtml = `<a target="_blank" id="${linkId}" href="${url}" data-original-title="" title="">${provider.name}</a>`;
-      $('.external li').append(linkHtml);
-      this.logger.debug(`Added ${provider.name} link: ${url}`);
-    }
-  }
-
   class TraktExternalLinks {
     constructor() {
       this.config = { ...DEFAULT_CONFIG };
       this.wikidata = null;
-
-      // Bind methods to ensure proper `this` context
-      this.getMediaInfo = this.getMediaInfo.bind(this);
-      this.handleExternalLinks = this.handleExternalLinks.bind(this);
+      this.mediaInfo = null;
     }
 
     // Logging methods
@@ -232,7 +190,6 @@
       }
     }
 
-    // Initialization and core functionality
     async init() {
       await this.loadConfig();
       this.initializeWikidata();
@@ -268,20 +225,20 @@
     }
 
     setupEventListeners() {
-      NodeCreationObserver.onCreation('.sidebar .external', this.handleExternalLinks);
+      NodeCreationObserver.onCreation('.sidebar .external', () => this.handleExternalLinks());
       NodeCreationObserver.onCreation('body', () => this.addSettingsMenu());
     }
 
     async handleExternalLinks() {
       try {
         await this.clearExpiredCache();
-        const mediaInfo = this.getMediaInfo();
+        this.mediaInfo = this.getMediaInfo();
 
-        if (mediaInfo.imdbId) {
-          await this.processWikidataLinks(mediaInfo);
+        if (this.mediaInfo.imdbId) {
+          await this.processWikidataLinks();
         }
 
-        this.addDirectLinks(mediaInfo);
+        this.addDirectLinks();
       } catch (error) {
         this.error(`Failed handling external links: ${error.message}`);
       }
@@ -337,8 +294,46 @@
       }
     }
 
-    async processWikidataLinks(mediaInfo) {
-      const cache = await GM.getValue(mediaInfo.imdbId);
+    addDirectLinks() {
+      Object.values(LINK_PROVIDERS).forEach(provider => {
+        try {
+          if (this.shouldAddProvider(provider)) {
+            this.createDirectLink(provider);
+          }
+        } catch (error) {
+          this.error(`Error creating ${provider.name} link: ${error.message}`);
+        }
+      });
+    }
+
+    shouldAddProvider(provider) {
+      const isConfigurable = provider.id && this.config.enabledLinks[provider.id];
+      const isNonConfigurable = !provider.id;
+      return (isConfigurable || isNonConfigurable) &&
+             this.areRequirementsMet(provider.requires);
+    }
+
+    areRequirementsMet(requiredFields) {
+      return requiredFields.every(field => this.mediaInfo[field]);
+    }
+
+    createLink(name, url) {
+      const linkId = `external-link-${name.toLowerCase().replace(/\s/g, '_')}`;
+
+      if (!this.linkExists(name)) {
+        const linkHtml = `<a target="_blank" id="${linkId}" href="${url}" data-original-title="" title="">${name}</a>`;
+        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(linkHtml);
+        this.debug(`Added ${name} link: ${url}`);
+      }
+    }
+
+    createDirectLink(provider) {
+      const url = provider.getUrl(this.mediaInfo);
+      this.createLink(provider.name, url);
+    }
+
+    async processWikidataLinks() {
+      const cache = await GM.getValue(this.mediaInfo.imdbId);
 
       if (this.isCacheValid(cache)) {
         this.debug('Using cached Wikidata data');
@@ -347,8 +342,8 @@
       }
 
       try {
-        const data = await this.wikidata.links(mediaInfo.imdbId, 'IMDb', mediaInfo.type);
-        await GM.setValue(mediaInfo.imdbId, {
+        const data = await this.wikidata.links(this.mediaInfo.imdbId, 'IMDb', this.mediaInfo.type);
+        await GM.setValue(this.mediaInfo.imdbId, {
           links: data.links,
           item: data.item,
           time: Date.now()
@@ -360,23 +355,10 @@
       }
     }
 
-    addDirectLinks(mediaInfo) {
-      try {
-        const provider = new DirectLinksProvider(mediaInfo, this.config, {
-          error: this.error.bind(this),
-          debug: this.debug.bind(this)
-        });
-        provider.addLinks();
-        this.debug('Direct links added successfully');
-      } catch (error) {
-        this.error(`Failed adding direct links: ${error.message}`);
-      }
-    }
-
     addWikidataLinks(links) {
       Object.entries(links).forEach(([site, link]) => {
         if (site !== 'Trakt' && link?.value && !this.linkExists(site)) {
-          this.createExternalLink(site, link.value);
+          this.createLink(site, link.value);
         }
       });
     }
@@ -389,12 +371,6 @@
 
     linkExists(site) {
       return $(`#info-wrapper .sidebar .external li a#external-link-${site.toLowerCase().replace(/\s/g, '_')}`).length > 0;
-    }
-
-    createExternalLink(site, url) {
-      const linkId = `external-link-${site.toLowerCase().replace(/\s/g, '_')}`;
-      const link = `<a target="_blank" id="${linkId}" href="${url}" data-original-title="" title="">${site}</a>`;
-      $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(link);
     }
 
     async clearExpiredCache() {

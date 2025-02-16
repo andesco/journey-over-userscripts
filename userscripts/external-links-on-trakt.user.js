@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.0.1
+// @version       3.0.2
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -166,9 +166,13 @@
       const pathParts = location.pathname.split('/');
       const type = pathParts[1] === 'movies' ? 'movie' : 'tv';
 
-      // Get IDs from existing external links
-      const imdbId = $('#external-link-imdb').attr('href').match(/tt\d+/)[0];
-      const tmdbId = $('#external-link-tmdb').attr('href').match(/\/(movie|tv)\/(\d+)/)[2];
+      // Safely get IDs from existing external links
+      const imdbHref = $('#external-link-imdb').attr('href') || '';
+      const imdbId = imdbHref.match(/tt\d+/)?.[0] || null;
+
+      const tmdbHref = $('#external-link-tmdb').attr('href') || '';
+      const tmdbMatch = tmdbHref.match(/\/(movie|tv)\/(\d+)/);
+      const tmdbId = tmdbMatch ? tmdbMatch[2] : null;
 
       // Extract title from URL slug
       const slug = pathParts[2] || '';

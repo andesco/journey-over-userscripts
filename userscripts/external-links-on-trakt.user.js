@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.0.0
+// @version       3.0.1
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
 // @match         *://trakt.tv/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@main/libs/wikidata/index.min.js?version=1.1.0
-// @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
-// @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
+// @require       https://cdn.staticdelivr.com/gh/StylusThemes/Userscripts/refs/heads/main/libs/wikidata/index.min.js?version=1.1.0
+// @require       https://cdn.staticdelivr.com/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
+// @require       https://cdn.staticdelivr.com/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue
 // @grant         GM.getValue
 // @grant         GM.listValues

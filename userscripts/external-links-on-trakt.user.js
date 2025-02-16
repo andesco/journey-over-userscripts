@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.0.2
+// @version       3.1.0
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -56,6 +56,13 @@
       { name: 'Rive', desc: 'Provides a direct link to the Rive streaming page for the selected title.' },
       { name: 'Wovie', desc: 'Provides a direct link to the Wovie streaming page for the selected title.' },
       { name: 'XPrime', desc: 'Provides a direct link to the XPrime streaming page for the selected title.' },
+    ],
+    LINK_ORDER: [
+      'Official Site', 'IMDb', 'TMDB', 'TVDB', 'Rotten Tomatoes', 'Metacritic',
+      'Letterboxd', 'TVmaze', 'MyAnimeList', 'AniDB', 'AniList', 'Kitsu',
+      'AniSearch', 'LiveChart', 'Fanart.tv', 'Mediux', 'BrocoFlix', 'Cineby',
+      'Freek', 'P-Stream', 'Rive', 'Wovie', 'XPrime', 'JustWatch',
+      'Wikipedia', 'Twitter', 'Facebook', 'Instagram'
     ]
   };
 
@@ -214,18 +221,45 @@
         if (this.mediaInfo.tmdbId || this.mediaInfo.imdbId) {
           this.addCustomLinks();
         }
+        this.sortLinks();
       } catch (error) {
         this.error(`Failed handling external links: ${error.message}`);
       }
     }
 
+    sortLinks() {
+      const container = $('.sidebar .external');
+      const listItem = container.find('li').first();
+      const links = listItem.children('a').detach();
+
+      const orderMap = new Map(CONSTANTS.LINK_ORDER.map((name, i) => [name.toLowerCase(), i]));
+
+      const sorted = links.toArray().sort((a, b) => {
+        const getKey = el => {
+          const $el = $(el);
+          // Check data-site first, then data-original-title, then text
+          return $el.data('site') ||
+                 $el.data('original-title') ||
+                 $el.text().trim();
+        };
+
+        // Normalize the key for comparison
+        const aKey = getKey(a).toLowerCase();
+        const bKey = getKey(b).toLowerCase();
+
+        return (orderMap.get(aKey) ?? Infinity) - (orderMap.get(bKey) ?? Infinity);
+      });
+
+      listItem.append(sorted);
+    }
+
     createLink(name, url) {
       // Create new external link element if it doesn't exist
-      const linkId = `external-link-${name.toLowerCase().replace(/\s/g, '_')}`;
-
-      if (!this.linkExists(name)) {
-        const linkHtml = `<a target="_blank" id="${linkId}" href="${url}" data-original-title="" title="">${name}</a>`;
-        $('#info-wrapper .sidebar .external li a:not(:has(i))').last().after(linkHtml);
+      const id = `external-link-${name.toLowerCase().replace(/\s/g, '-')}`;
+      if (!document.getElementById(id)) {
+        $('.sidebar .external li').append(
+          `<a target="_blank" id="${id}" href="${url}" data-original-title="" title="">${name}</a>`
+        );
         this.debug(`Added ${name} link: ${url}`);
       }
     }
@@ -379,7 +413,7 @@
     }
 
     linkExists(site) {
-      return $(`#info-wrapper .sidebar .external li a#external-link-${site.toLowerCase().replace(/\s/g, '_')}`).length > 0;
+      return $(`#external-link-${site.toLowerCase().replace(/\s/g, '-')}`).length > 0;
     }
 
     async clearExpiredCache() {

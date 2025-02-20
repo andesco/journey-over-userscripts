@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.1.0
+// @version       3.2.0
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -163,6 +163,9 @@
       // Watch for external links container and body element creation
       NodeCreationObserver.onCreation('.sidebar .external', () => this.handleExternalLinks());
       NodeCreationObserver.onCreation('body', () => this.addSettingsMenu());
+
+      // Watch for collection links in list descriptions on collection pages
+      NodeCreationObserver.onCreation('.text.readmore', () => this.handleCollectionLinks());
     }
 
     // ======================
@@ -399,6 +402,30 @@
           linkConfig.condition()
         ) {
           this.createLink(linkConfig.name, linkConfig.url());
+        }
+      });
+    }
+
+    // ======================
+    //  Collection Link Handling
+    // ======================
+    handleCollectionLinks() {
+      if (!this.config.Mediux) return;
+
+      const tmdbCollectionLinks = $('.text.readmore a[href*="themoviedb.org/collection/"]');
+
+      tmdbCollectionLinks.each((index, element) => {
+        const $tmdbLink = $(element);
+        const tmdbUrl = $tmdbLink.attr('href');
+        const collectionId = tmdbUrl.match(/collection\/(\d+)/)?.[1];
+
+        if (collectionId) {
+          const mediuxUrl = `https://mediux.pro/collections/${collectionId}`;
+          const mediuxLink = `<p><a href="${mediuxUrl}" target="_blank" class="comment-link">Mediux Collection</a></p>`;
+
+          if (!$tmdbLink.next(`a[href="${mediuxUrl}"]`).length) {
+            $tmdbLink.after(`${mediuxLink}`);
+          }
         }
       });
     }

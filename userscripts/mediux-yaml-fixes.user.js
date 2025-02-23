@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Mediux - Yaml Fixes
-// @version       1.0.2
+// @version       1.1.0
 // @description   Adds fixes and functions to Mediux
 // @author        Journey Over
 // @license       MIT
@@ -122,8 +122,6 @@ function get_set(setnum) {
     });
   });
 }
-
-
 
 async function load_boxset(codeblock) {
   const button = document.querySelector('#bsetbutton');
@@ -274,7 +272,7 @@ function format_tv_yml(codeblock) {
   const match = yaml.match(regexSet);
   if (match) {
     const setId = match[1]; // Set ID (e.g., 413074)
-    const title = match[2]; // Movie Title (e.g., Mayfair Witches)
+    const title = match[2]; // TV Title (e.g., Mayfair Witches)
     const url = match[4]; // Set URL (https://mediux.pro/sets/20217)
 
     // Replace the header part with no extra space and use the correct title and year
@@ -303,24 +301,36 @@ function format_tv_yml(codeblock) {
 
 function format_movie_yml(codeblock) {
   const button = document.querySelector('#fymoviebutton');
-  var yaml = codeblock.textContent;
+  let yaml = codeblock.textContent;
 
-  // Regex to match each metadata block and simplify the information
-  yaml = yaml.replace(
-    /(\d+): # (.*?)\((\d{4})\).*?\n\s+url_poster: (https:\/\/api\.mediux\.pro\/assets\/[a-z0-9\-]+)(?:\n\s+url_background: (https:\/\/api\.mediux\.pro\/assets\/[a-z0-9\-]+))?/g,
-    (match, id, title, year, poster, background) => {
-      // Create the cleaned-up YAML entry
-      return `${id}: # ${title.trim()} (${year})\n    url_poster: "${poster}"${background ? `\n    url_background: "${background}"` : ''}`;
-    }
-  );
+  // Regex pattern to capture set URL from first entry
+  const regexSet = /https:\/\/mediux\.pro\/sets\/\d+/;
+  const urlMatch = yaml.match(regexSet);
+  const url = urlMatch ? urlMatch[0] : null;
 
-   // Add the 'metadata' header to the YAML content and ensure no extra blank lines
-  yaml = `metadata:\n\n${yaml}`.replace(/metadata:\n\n+/, 'metadata:\n\n');
+  if (url) {
+    // Process all individual entries while preserving their data
+    yaml = yaml.replace(
+      /(\d+):\s*#\s*([^\(\n]+?)\s*\((\d{4})\).*?(https:\/\/mediux\.pro\/sets\/\d+)/g,
+      (match, id, title, year) => `${id}: # ${title.trim()} (${year})`
+    );
 
-  // Update the code block with the transformed YAML
+    // Add consolidated header with set URL
+    const header = `# Posters from:\n# ${url}\n\nmetadata:\n\n`;
+    yaml = yaml.replace(/(^|\n)metadata:\n/g, '');
+    yaml = header + yaml;
+
+    // Format URLs and clean up YAML
+    yaml = yaml
+      .replace(/(url_poster|url_background): (https:\/\/api\.mediux\.pro\/assets\/\S+)/g, '$1: "$2"')
+      .replace(/(\n\n)(\s+\n)/g, '\n\n') // Remove empty lines
+      .replace(/\n{3,}/g, '\n\n');
+  }
+
+  // Update the code block with the formatted YAML
   codeblock.innerText = yaml;
 
-  // Copy the transformed result to the clipboard
+  // Copy the formatted result to the clipboard
   navigator.clipboard.writeText(yaml);
   showNotification("YAML transformed and copied to clipboard!");
   color_change(button);
@@ -341,10 +351,10 @@ function start() {
   var bsetbutton = $('<button id="bsetbutton" title="Generate YAML for associated boxset" class="duration-500 py-1 px-2 text-xs bg-gray-500 text-white rounded flex items-center justify-center focus:outline-none" style="margin-left:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-box w-5 h-5"><rect width="18" height="18" x="3" y="3" rx="2"></rect><path d="M7 7v10"></path><path d="M11 7v10"></path><path d="m15 7 2 10"></path></svg></button>');
   bsetbutton.on('click', () => load_boxset(codeblock));
 
-  var fytvbutton = $('<button id="fytvbutton" title="Format TV Show YAML" class="duration-500 py-1 px-2 text-xs bg-gray-500 text-white rounded flex items-center justify-center focus:outline-none" style="margin-left:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tv w-5 h-5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg></button>');
+  var fytvbutton = $('<button id="fytvbutton" title="Format TV show YAML for Kometa" class="duration-500 py-1 px-2 text-xs bg-gray-500 text-white rounded flex items-center justify-center focus:outline-none" style="margin-left:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-tv w-5 h-5"><rect x="2" y="7" width="20" height="15" rx="2" ry="2"></rect><polyline points="17 2 12 7 7 2"></polyline></svg></button>');
   fytvbutton.on('click', () => format_tv_yml(codeblock));
 
-  var fymoviebutton = $('<button id="fymoviebutton" title="Format Movie Boxset YAML" class="duration-500 py-1 px-2 text-xs bg-gray-500 text-white rounded flex items-center justify-center focus:outline-none" style="margin-left:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-film-reel w-5 h-5"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"></circle><line x1="12" y1="4" x2="12" y2="20"></line><line x1="4" y1="12" x2="20" y2="12"></line><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"></circle></svg></button>');
+  var fymoviebutton = $('<button id="fymoviebutton" title="Format Movie YAML for Kometa" class="duration-500 py-1 px-2 text-xs bg-gray-500 text-white rounded flex items-center justify-center focus:outline-none" style="margin-left:10px"><svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-film-reel w-5 h-5"><circle cx="12" cy="12" r="8" stroke="currentColor" stroke-width="2"></circle><line x1="12" y1="4" x2="12" y2="20"></line><line x1="4" y1="12" x2="20" y2="12"></line><circle cx="12" cy="12" r="3" stroke="currentColor" stroke-width="2"></circle></svg></button>');
   fymoviebutton.on('click', () => format_movie_yml(codeblock));
 
   var wrappedButtons = $('<div id="extbuttons" class="flex flex-row" style="margin-top: 10px"></div>')

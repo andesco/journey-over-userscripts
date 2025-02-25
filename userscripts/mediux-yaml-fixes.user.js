@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Mediux - Yaml Fixes
-// @version       1.1.0
+// @version       1.1.1
 // @description   Adds fixes and functions to Mediux
 // @author        Journey Over
 // @license       MIT
@@ -311,7 +311,7 @@ function format_movie_yml(codeblock) {
   if (url) {
     // Process all individual entries while preserving their data
     yaml = yaml.replace(
-      /(\d+):\s*#\s*([^\(\n]+?)\s*\((\d{4})\).*?(https:\/\/mediux\.pro\/sets\/\d+)/g,
+      /(\d+):\s*#\s*(.*?)\s*\((\d{4})\).*?(https:\/\/mediux\.pro\/sets\/\d+)/g,
       (match, id, title, year) => `${id}: # ${title.trim()} (${year})`
     );
 

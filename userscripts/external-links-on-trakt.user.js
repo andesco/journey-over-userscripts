@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.2.0
+// @version       3.2.1
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -369,7 +369,7 @@
           name: 'Rive',
           url: () => {
             const show = this.mediaInfo.type === 'tv' ? `&season=${this.mediaInfo.season}&episode=${this.mediaInfo.episode}` : '';
-            return `https://rivestream.live/watch?type=${this.mediaInfo.type}&id=${this.mediaInfo.tmdbId}${show}`;
+            return `https://rivestream.org/watch?type=${this.mediaInfo.type}&id=${this.mediaInfo.tmdbId}${show}`;
           },
           condition: () => true,
           requiredData: 'tmdbId'

@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          YouTube - Resumer
-// @version       1.2.0
+// @version       1.2.1
 // @description   Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage.
 // @author        Journey Over
 // @license       MIT
@@ -20,7 +20,20 @@ function l(...args) {
 }
 
 function videoId(url = document.URL) {
-  return new URL(url).searchParams.get('v');
+  const urlObj = new URL(url);
+  // Handle regular YouTube watch URLs (youtube.com/watch?v=ID)
+  if (urlObj.pathname === '/watch') {
+    return urlObj.searchParams.get('v');
+  }
+  // Handle embed URLs (youtube.com/embed/ID)
+  else if (urlObj.pathname.startsWith('/embed/')) {
+    return urlObj.pathname.split('/')[2];
+  }
+  // Handle youtu.be shortened URLs (youtu.be/ID)
+  else if (urlObj.hostname === 'youtu.be') {
+    return urlObj.pathname.slice(1);
+  }
+  return null;
 }
 
 function save(video, id) {
@@ -109,9 +122,11 @@ function cleanUrl() {
 
 let lastId;
 
-document.addEventListener("yt-navigate-finish", () => {
-  if (videoId() && lastId !== videoId()) {
-    lastId = videoId();
+// Handle both regular YouTube navigation and embedded videos
+function handleNavigation() {
+  const currentId = videoId();
+  if (currentId && lastId !== currentId) {
+    lastId = currentId;
     cleanUrl(); // Clean up the URL
     let removeListeners;
     findVideo(video => {
@@ -120,7 +135,19 @@ document.addEventListener("yt-navigate-finish", () => {
       removeListeners = listen(video);
     });
   }
-});
+}
+
+// Listen for navigation events on regular YouTube
+document.addEventListener("yt-navigate-finish", handleNavigation);
+
+// For embedded videos, check periodically as they might not trigger navigation events
+if (window.location.pathname.startsWith('/embed/')) {
+  // Initial check
+  handleNavigation();
+
+  // Periodic checks in case the embedded video changes without navigation
+  setInterval(handleNavigation, 1000);
+}
 
 // Call the cleanOldValues function when the script is initialized
 cleanOldValues();

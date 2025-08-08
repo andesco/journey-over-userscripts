@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          YouTube - Filters
-// @version       1.4.2
+// @version       1.4.3
 // @description   Filters YouTube videos by duration and age. Hides videos less than X seconds long or older than a specified number of years, excluding channel video tabs.
 // @author        Journey Over
 // @license       MIT
@@ -23,9 +23,10 @@
   const AGE_THRESHOLD_YEARS = GM_getValue('AGE_THRESHOLD_YEARS', 4);
   const ENABLE_CONSOLE_LOGS = GM_getValue('ENABLE_CONSOLE_LOGS', true);
 
-  const processedVideos = new Set(); // To keep track of processed videos
+  const processedVideos = new Set(); // To keep track of processed video containers
+  let scheduledFilter = null; // throttle flag for mutation observer
 
-  // Create a settings menu
+  /* ---------------- Settings UI ---------------- */
   function openSettingsMenu() {
     const settingsContainer = document.createElement('div');
     settingsContainer.id = 'yt-filters-settings';
@@ -81,32 +82,35 @@
     });
   }
 
-  // Register a menu command for opening the settings menu
   GM_registerMenuCommand('Open YouTube Filters Settings', openSettingsMenu);
 
-  // Function to convert video duration from HH:MM:SS or MM:SS to seconds
+  /* ---------------- Utilities ---------------- */
   function convertDurationToSeconds(durationText) {
-    const timeParts = durationText.split(':').reverse();
+    // Handles HH:MM:SS, MM:SS, or single "SS" just in case.
+    if (!durationText) return 0;
+    // remove whitespace and any non-digit/: characters
+    const sanitized = durationText.trim().replace(/[^\d:]/g, '');
+    if (!sanitized) return 0;
+    const parts = sanitized.split(':').map(p => parseInt(p, 10) || 0).reverse();
     let seconds = 0;
-
-    timeParts.forEach((part, index) => {
-      seconds += parseInt(part, 10) * Math.pow(60, index);
-    });
-
+    for (let i = 0; i < parts.length; i++) {
+      seconds += parts[i] * Math.pow(60, i);
+    }
     return seconds;
   }
 
-  // Function to determine if a video is short (less than MIN_DURATION_SECONDS) or not
   function isShortVideo(durationInSeconds) {
     return durationInSeconds < MIN_DURATION_SECONDS && durationInSeconds !== 0;
   }
 
-  // Function to extract video age text
-  function getVideoAgeTextAndYears(video) {
-    const ageText = Array.from(video.querySelectorAll('span.inline-metadata-item.style-scope.ytd-video-meta-block'))
-      .map(el => el.innerText.trim())
-      .find(text => text.toLowerCase().includes("ago"));
+  // Extract "X years ago" style info from a container (works with new and old YouTube DOM)
+  function getVideoAgeTextAndYears(container) {
+    // Search any text nodes or spans near metadata rows that include "ago"
+    const texts = Array.from(container.querySelectorAll('span, .yt-core-attributed-string, .yt-content-metadata-view-model-wiz__metadata-text'))
+      .map(el => el.innerText && el.innerText.trim())
+      .filter(Boolean);
 
+    const ageText = texts.find(t => /\bago\b/i.test(t));
     if (ageText) {
       const yearsMatch = ageText.match(/(\d+)\s+(year|years)\s+ago/i);
       return {
@@ -117,54 +121,121 @@
     return { text: 'Unknown', years: 0 };
   }
 
-  // Function to process and filter videos based on duration and age
-  function filterVideos() {
-    // Check if we are on a channel page by looking at URL or specific elements
-    const url = window.location.href;
-    const isChannelPage = url.includes('@') && url.includes('/videos');
+  function getVideoTitle(container) {
+    // new markup
+    const newTitle = container.querySelector('.yt-lockup-metadata-view-model-wiz__title, .yt-lockup-metadata-view-model-wiz__heading-reset a');
+    if (newTitle) {
+      // the title text may be inside an inner span
+      const inner = newTitle.querySelector('span') || newTitle;
+      return inner.innerText ? inner.innerText.trim() : (newTitle.title || '');
+    }
+    // fallback to legacy selector
+    const legacy = container.querySelector('#video-title');
+    return legacy ? legacy.innerText.trim() : '';
+  }
 
-    if (isChannelPage) {
-      return; // Exit if we are on a channel's video tab
+  function getDurationText(container) {
+    // try new markup badge text
+    let badge = container.querySelector('.badge-shape-wiz__text, yt-thumbnail-badge-view-model .badge-shape-wiz__text');
+    if (badge && badge.innerText.trim()) return badge.innerText.trim();
+
+    // legacy markup fallback
+    const legacy = container.querySelector('span.ytd-thumbnail-overlay-time-status-renderer, .ytd-thumbnail-overlay-time-status-renderer');
+    if (legacy && legacy.innerText) return legacy.innerText.trim();
+
+    // sometimes duration is on the thumbnail overlay element
+    const overlay = container.querySelector('[aria-label*="duration"], .yt-thumbnail-overlay-time-status-renderer');
+    if (overlay && overlay.innerText) return overlay.innerText.trim();
+
+    return '';
+  }
+
+  /* ---------------- Detection of channel / videos tab ---------------- */
+  function isChannelVideosPage() {
+    // matches /@name/videos or /channel/ /c/ /user/ followed by /videos
+    const path = window.location.pathname || '';
+    const channelVideosRegex = /^\/(?:(?:@[^\/]+)|(?:channel|c|user)\/[^\/]+)\/videos(\/.*)?$/i;
+    return channelVideosRegex.test(path);
+  }
+
+  /* ---------------- Main filtering ---------------- */
+  function collectVideoContainers() {
+    const containers = new Set();
+
+    // Preferred: anchors that link to watch pages — covers many renderers including new markup
+    const watchAnchors = document.querySelectorAll('a[href*="/watch?v="]');
+    watchAnchors.forEach(a => {
+      // try to find a known container ancestor
+      const container = a.closest('div.yt-lockup-view-model-wiz') ||
+                        a.closest('ytd-rich-item-renderer') ||
+                        a.closest('ytd-compact-video-renderer') ||
+                        a.closest('ytd-video-renderer') ||
+                        a.closest('ytd-playlist-panel-video-renderer') ||
+                        a.closest('div.yt-lockup') ||
+                        a.closest('div'); // last-resort (will be filtered)
+      if (container) containers.add(container);
+    });
+
+    // Also include older renderer elements that might not have an anchor in the same way
+    Array.from(document.querySelectorAll('ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, div.yt-lockup-view-model-wiz'))
+      .forEach(el => containers.add(el));
+
+    return Array.from(containers);
+  }
+
+  function filterVideos() {
+    // Don't run on channel /videos pages
+    if (isChannelVideosPage()) {
+      if (ENABLE_CONSOLE_LOGS) console.log('[YT Filters] Skipping channel /videos page.');
+      return;
     }
 
-    const videoSelectors = 'ytd-rich-item-renderer, ytd-compact-video-renderer, ytd-video-renderer, ytd-playlist-panel-video-renderer';
-    const videos = document.querySelectorAll(videoSelectors);
+    const containers = collectVideoContainers();
 
-    videos.forEach(video => {
-      if (processedVideos.has(video)) return; // Skip if already processed
+    containers.forEach(container => {
+      if (!container || processedVideos.has(container)) return;
 
-      const title = getVideoTitle(video);
-      const durationElement = video.querySelector('span.ytd-thumbnail-overlay-time-status-renderer');
-      const durationText = durationElement ? durationElement.innerText.trim() : '';
+      const title = getVideoTitle(container);
+      const durationText = getDurationText(container) || '';
       const durationInSeconds = convertDurationToSeconds(durationText);
-      const { text: videoAgeText, years: videoAgeInYears } = getVideoAgeTextAndYears(video);
+      const { text: videoAgeText, years: videoAgeInYears } = getVideoAgeTextAndYears(container);
 
       if (isShortVideo(durationInSeconds)) {
         if (ENABLE_CONSOLE_LOGS) {
           console.log(`%cDuration Removal: %c"${title}" %c(${durationText})`, "color: red;", "color: orange;", "color: deepskyblue;");
         }
-        video.style.display = 'none'; // Hide short videos
-        processedVideos.add(video); // Mark as processed
+        container.style.display = 'none';
+        processedVideos.add(container);
       } else if (videoAgeInYears >= AGE_THRESHOLD_YEARS) {
         if (ENABLE_CONSOLE_LOGS) {
           console.log(`%cAge Removal: %c"${title}" %c(${videoAgeText})`, "color: red;", "color: orange;", "color: deepskyblue;");
         }
-        video.style.display = 'none'; // Hide old videos
-        processedVideos.add(video); // Mark as processed
+        container.style.display = 'none';
+        processedVideos.add(container);
+      } else {
+        // If previously hidden by you but now ok, don't unhide automatically — keep it simple.
+        processedVideos.add(container); // mark processed to avoid reprocessing
       }
     });
   }
 
-  // Function to get the video title
-  function getVideoTitle(video) {
-    const titleElement = video.querySelector('#video-title');
-    return titleElement ? titleElement.innerText.trim() : '';
-  }
+  /* ---------------- Mutation observer (throttled) ---------------- */
+  const observer = new MutationObserver((mutations) => {
+    if (scheduledFilter) return;
+    scheduledFilter = setTimeout(() => {
+      try {
+        filterVideos();
+      } catch (e) {
+        if (ENABLE_CONSOLE_LOGS) console.error('[YT Filters] Error during filter:', e);
+      } finally {
+        scheduledFilter = null;
+      }
+    }, 250); // small throttle
+  });
 
-  // Create a MutationObserver to detect and handle new videos added dynamically
-  const observer = new MutationObserver(filterVideos);
   observer.observe(document.body, { childList: true, subtree: true });
 
-  // Initial filter run
-  filterVideos();
+  // Initial run after a short delay to allow content to render
+  setTimeout(filterVideos, 600);
+
 })();

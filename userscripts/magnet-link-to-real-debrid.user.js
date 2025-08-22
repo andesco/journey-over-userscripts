@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.2.0
+// @version       2.3.0
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT
@@ -16,10 +16,31 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/magnet-link-to-real-debrid.user.js
 // ==/UserScript==
 
-(function() {
+(() => {
   'use strict';
 
-  // Error classes for better error handling
+  /* Constants & Utilities */
+  const STORAGE_KEY = 'realDebridConfig';
+  const API_BASE = 'https://api.real-debrid.com/rest/1.0';
+  const ICON_SRC = 'https://fcdn.real-debrid.com/0830/favicons/favicon.ico';
+  const INSERTED_ICON_ATTR = 'data-rd-inserted';
+  const DEFAULTS = {
+    apiKey: '',
+    allowedExtensions: ['mp3', 'm4b', 'mp4', 'mkv', 'cbz', 'cbr'],
+    filterKeywords: ['sample', 'bloopers', 'trailer'],
+    debugMode: false
+  };
+
+  // Simple debounce helper for DOM mutation handling
+  const debounce = (fn, ms = 120) => {
+    let t;
+    return (...args) => {
+      clearTimeout(t);
+      t = setTimeout(() => fn(...args), ms);
+    };
+  };
+
+  /* Errors */
   class ConfigurationError extends Error {
     constructor(message) {
       super(message);
@@ -35,255 +56,222 @@
     }
   }
 
-  // Configuration Management
+  /* Config Manager */
   class ConfigManager {
-    static #DEFAULT_CONFIG = {
-      apiKey: '',
-      allowedExtensions: ['mp3', 'm4b', 'mp4', 'mkv', 'cbz', 'cbr'],
-      filterKeywords: ['sample', 'bloopers', 'trailer'],
-      debugMode: false
-    };
-
-    static getConfig() {
-      const storedConfig = GM_getValue('realDebridConfig');
-      return storedConfig ? JSON.parse(storedConfig) : {
-        ...this.#DEFAULT_CONFIG
-      };
-    }
-
-    static saveConfig(config) {
-      if (!config.apiKey) {
-        throw new ConfigurationError('API Key is required');
-      }
-      GM_setValue('realDebridConfig', JSON.stringify(config));
-    }
-
-    static validateConfig(config) {
-      const errors = [];
-      if (!config.apiKey) errors.push('API Key is missing');
-      if (!Array.isArray(config.allowedExtensions)) errors.push('Invalid extensions');
-      if (!Array.isArray(config.filterKeywords)) errors.push('Invalid filter keywords');
-      return errors;
-    }
-  }
-
-  // Real-Debrid API Service
-  class RealDebridService {
-    #apiKey;
-    #baseUrl = 'https://api.real-debrid.com/rest/1.0';
-    #config;
-
-    constructor(apiKey, config) {
-      if (!apiKey) throw new ConfigurationError('API Key required');
-      this.#apiKey = apiKey;
-      this.#config = config;
-    }
-
-    async #request(method, endpoint, data = null) {
-      return new Promise((resolve, reject) => {
-        if (this.#config.debugMode) {
-          console.log(`[DEBUG] API Request: ${method} ${endpoint}`, data || '(no payload)');
-        }
-
-        GM_xmlhttpRequest({
-          method,
-          url: `${this.#baseUrl}${endpoint}`,
-          headers: {
-            'Authorization': `Bearer ${this.#apiKey}`,
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          data: data ? new URLSearchParams(data).toString() : null,
-          onload: response => {
-            if (this.#config.debugMode) {
-              console.log(`[DEBUG] API Response:`, {
-                status: response.status,
-                responseText: response.responseText
-              });
-            }
-
-            // First check if response exists and has a status
-            if (!response || typeof response.status === 'undefined') {
-              reject(new RealDebridError('Invalid API response received'));
-              return;
-            }
-
-            // Check for error status codes
-            if (response.status < 200 || response.status >= 300) {
-              reject(new RealDebridError(`API Error: ${response.status}`, response.status));
-              return;
-            }
-
-            // Handle empty or undefined responseText
-            if (!response.responseText) {
-              // For 204 No Content, return empty object
-              if (response.status === 204) {
-                resolve({});
-                return;
-              }
-              reject(new RealDebridError('Empty response received from API'));
-              return;
-            }
-
-            try {
-              // Safely trim the response text
-              const responseText = (response.responseText || '').trim();
-
-              // Handle empty but valid responses
-              if (!responseText) {
-                resolve({});
-                return;
-              }
-
-              const result = JSON.parse(responseText);
-              resolve(result);
-            } catch (error) {
-              console.error('Parsing Error:', error);
-              reject(new RealDebridError(`Failed to parse API response: ${error.message}`, response.status));
-            }
-          },
-          onerror: error => {
-            console.error('Request Error:', error);
-            reject(new RealDebridError('Network request failed', error?.status || 0));
-          },
-          ontimeout: () => {
-            reject(new RealDebridError('Request timed out'));
-          }
-        });
-      });
-    }
-
-    async addMagnet(magnetLink) {
-      return this.#request('POST', '/torrents/addMagnet', {
-        magnet: magnetLink
-      });
-    }
-
-    async getTorrentInfo(torrentId) {
-      return this.#request('GET', `/torrents/info/${torrentId}`);
-    }
-
-    async selectFiles(torrentId, files) {
-      return this.#request('POST', `/torrents/selectFiles/${torrentId}`, {
-        files
-      });
-    }
-
-    async getExistingTorrents() {
-      return this.#request('GET', '/torrents');
-    }
-  }
-
-  // Magnet Link Processor
-  class MagnetLinkProcessor {
-    #config;
-    #realDebridService;
-    #existingTorrents = [];
-
-    constructor(config, realDebridService) {
-      this.#config = config;
-      this.#realDebridService = realDebridService;
-    }
-
-    async initialize() {
+    // Parse stored JSON safely, falling back to null on failure
+    static _safeParse(value) {
+      if (!value) return null;
       try {
-        this.#existingTorrents = await this.#realDebridService.getExistingTorrents();
-        if (this.#config.debugMode) {
-          console.log('[DEBUG] Existing Torrents:', this.#existingTorrents);
-        }
-      } catch (error) {
-        console.warn('Could not fetch existing torrents', error);
-      }
-    }
-
-    getMagnetHash(magnetLink) {
-      try {
-        const magnetUri = new URL(magnetLink);
-        return magnetUri.searchParams.get('xt')?.split(':').pop()?.toUpperCase() || null;
-      } catch {
+        return typeof value === 'string' ? JSON.parse(value) : value;
+      } catch (e) {
+        console.warn('Config parse failed, resetting to defaults.', e);
         return null;
       }
     }
 
-    isTorrentExists(magnetHash) {
-      return this.#existingTorrents.some(
-        torrent => torrent.hash.toUpperCase() === magnetHash
-      );
+    static getConfig() {
+      const stored = GM_getValue(STORAGE_KEY);
+      const parsed = this._safeParse(stored) || {};
+      return { ...DEFAULTS, ...parsed };
     }
 
-    filterFiles(files) {
-      return files.filter(file => {
-        const fileExtension = file.path.split('.').pop().toLowerCase();
-        const fileName = file.path.toLowerCase();
-        const filePath = file.path.toLowerCase();
+    // Persist configuration; API key required
+    static saveConfig(cfg) {
+      if (!cfg || !cfg.apiKey) throw new ConfigurationError('API Key is required');
+      GM_setValue(STORAGE_KEY, JSON.stringify(cfg));
+    }
 
-        // Check for excluded file extensions
-        const isAllowedExtension = this.#config.allowedExtensions.includes(fileExtension);
+    static validateConfig(cfg) {
+      const errors = [];
+      if (!cfg || !cfg.apiKey) errors.push('API Key is missing');
+      if (!Array.isArray(cfg.allowedExtensions)) errors.push('allowedExtensions must be an array');
+      if (!Array.isArray(cfg.filterKeywords)) errors.push('filterKeywords must be an array');
+      return errors;
+    }
+  }
 
-        // Check for filtered keywords in filename using regex support
-        const isFilteredOut = this.#config.filterKeywords.some(keyword => {
-          const trimmedKeyword = keyword.trim().toLowerCase();
+  /* Real-Debrid Service (wraps GM_xmlhttpRequest) */
+  class RealDebridService {
+    #apiKey;
+    #debug;
 
-          let regex;
-          if (trimmedKeyword.startsWith('/') && trimmedKeyword.endsWith('/')) {
+    constructor(apiKey, { debugMode = false } = {}) {
+      if (!apiKey) throw new ConfigurationError('API Key required');
+      this.#apiKey = apiKey;
+      this.#debug = Boolean(debugMode);
+    }
+
+    #log(...args) {
+      if (this.#debug) console.log('[RealDebridService]', ...args);
+    }
+
+    // Generic request wrapper: handles headers, encoding and JSON parsing/errors
+    #request(method, endpoint, data = null) {
+      return new Promise((resolve, reject) => {
+        const url = `${API_BASE}${endpoint}`;
+        const payload = data ? new URLSearchParams(data).toString() : null;
+
+        this.#log('request', method, url, data);
+
+        GM_xmlhttpRequest({
+          method,
+          url,
+          headers: {
+            Authorization: `Bearer ${this.#apiKey}`,
+            Accept: 'application/json',
+            'Content-Type': 'application/x-www-form-urlencoded'
+          },
+          data: payload,
+          onload: (resp) => {
+            this.#log('response', resp.status, resp.responseText && resp.responseText.slice && resp.responseText.slice(0, 500));
+
+            if (!resp || typeof resp.status === 'undefined') {
+              return reject(new RealDebridError('Invalid API response'));
+            }
+            if (resp.status < 200 || resp.status >= 300) {
+              const msg = resp.responseText ? resp.responseText : `HTTP ${resp.status}`;
+              return reject(new RealDebridError(`API Error: ${msg}`, resp.status));
+            }
+            if (resp.status === 204 || !resp.responseText) return resolve({});
             try {
-              regex = new RegExp(trimmedKeyword.slice(1, -1), 'i');
+              const parsed = JSON.parse(resp.responseText.trim());
+              return resolve(parsed);
             } catch (e) {
-              console.warn(`Invalid regex pattern: ${trimmedKeyword}`, e);
-              return false;
+              this.#log('parse error', e);
+              return reject(new RealDebridError(`Failed to parse API response: ${e.message}`, resp.status));
+            }
+          },
+          onerror: (err) => {
+            this.#log('network error', err);
+            return reject(new RealDebridError('Network request failed'));
+          },
+          ontimeout: () => {
+            this.#log('timeout');
+            return reject(new RealDebridError('Request timed out'));
+          }
+        });
+      });
+    }
+
+    addMagnet(magnet) {
+      return this.#request('POST', '/torrents/addMagnet', { magnet });
+    }
+
+    getTorrentInfo(torrentId) {
+      return this.#request('GET', `/torrents/info/${torrentId}`);
+    }
+
+    selectFiles(torrentId, filesCsv) {
+      return this.#request('POST', `/torrents/selectFiles/${torrentId}`, { files: filesCsv });
+    }
+
+    getExistingTorrents() {
+      // Gracefully return an empty array on failure
+      return this.#request('GET', '/torrents').catch(() => []);
+    }
+  }
+
+  /* Magnet Processing */
+  class MagnetLinkProcessor {
+    #config;
+    #api;
+    #existing = [];
+
+    constructor(config, api) {
+      this.#config = config;
+      this.#api = api;
+    }
+
+    async initialize() {
+      try {
+        this.#existing = await this.#api.getExistingTorrents();
+        if (this.#config.debugMode) console.log('[MagnetLinkProcessor] existing torrents', this.#existing);
+      } catch (e) {
+        console.warn('Failed to load existing torrents', e);
+        this.#existing = [];
+      }
+    }
+
+    // Extract BTIH (hash) from magnet link
+    static parseMagnetHash(magnetLink) {
+      if (!magnetLink || typeof magnetLink !== 'string') return null;
+      try {
+        const qIdx = magnetLink.indexOf('?');
+        const qs = qIdx >= 0 ? magnetLink.slice(qIdx + 1) : magnetLink;
+        const params = new URLSearchParams(qs);
+        const xt = params.get('xt');
+        if (xt) {
+          const match = xt.match(/urn:btih:([A-Za-z0-9]+)/i);
+          if (match) return match[1].toUpperCase();
+        }
+        const fallback = magnetLink.match(/xt=urn:btih:([A-Za-z0-9]+)/i);
+        if (fallback) return fallback[1].toUpperCase();
+        return null;
+      } catch (e) {
+        const m = magnetLink.match(/xt=urn:btih:([A-Za-z0-9]+)/i);
+        return m ? m[1].toUpperCase() : null;
+      }
+    }
+
+    isTorrentExists(hash) {
+      if (!hash) return false;
+      return Array.isArray(this.#existing) && this.#existing.some(t => (t.hash || '').toUpperCase() === hash);
+    }
+
+    // Filter torrent files by allowed extensions and filter keywords (supports regex-like /.../)
+    filterFiles(files = []) {
+      const allowed = new Set(this.#config.allowedExtensions.map(s => s.trim().toLowerCase()).filter(Boolean));
+      const keywords = (this.#config.filterKeywords || []).map(k => k.trim()).filter(Boolean);
+
+      return (files || []).filter(file => {
+        const path = (file.path || '').toLowerCase();
+        const name = path.split('/').pop() || '';
+        const ext = name.includes('.') ? name.split('.').pop() : '';
+
+        if (!allowed.has(ext)) return false;
+
+        for (const kw of keywords) {
+          if (!kw) continue;
+          if (kw.startsWith('/') && kw.endsWith('/')) {
+            try {
+              const re = new RegExp(kw.slice(1, -1), 'i');
+              if (re.test(path) || re.test(name)) return false;
+            } catch (e) {
+              // invalid regex: ignore it
             }
           }
-
-          // Check if regex pattern matches file name or path
-          if (regex) {
-            return regex.test(filePath) || regex.test(fileName);
-          }
-
-          // Default to string comparison if not regex
-          const folderMatch = filePath.split('/').some(pathSegment =>
-            pathSegment.includes(trimmedKeyword)
-          );
-
-          // Check if filtered keywords matches filename
-          const fileNameMatch = fileName.includes(trimmedKeyword);
-
-          return folderMatch || fileNameMatch;
-        });
-
-        return isAllowedExtension && !isFilteredOut;
+          if (path.includes(kw.toLowerCase()) || name.includes(kw.toLowerCase())) return false;
+        }
+        return true;
       });
     }
 
     async processMagnetLink(magnetLink) {
-      const magnetHash = this.getMagnetHash(magnetLink);
+      const hash = MagnetLinkProcessor.parseMagnetHash(magnetLink);
+      if (!hash) throw new RealDebridError('Invalid magnet link');
 
-      if (!magnetHash) {
-        throw new RealDebridError('Invalid magnet link');
+      if (this.isTorrentExists(hash)) throw new RealDebridError('Torrent already exists on Real-Debrid');
+
+      const addResult = await this.#api.addMagnet(magnetLink);
+      if (!addResult || typeof addResult.id === 'undefined') {
+        throw new RealDebridError('Failed to add magnet');
       }
+      const torrentId = addResult.id;
 
-      if (this.isTorrentExists(magnetHash)) {
-        throw new RealDebridError('Torrent already exists');
-      }
+      const info = await this.#api.getTorrentInfo(torrentId);
+      const files = Array.isArray(info.files) ? info.files : [];
 
-      const {
-        id: torrentId
-      } = await this.#realDebridService.addMagnet(magnetLink);
-      const {
-        files
-      } = await this.#realDebridService.getTorrentInfo(torrentId);
+      const chosen = this.filterFiles(files).map(f => f.id);
+      if (!chosen.length) throw new RealDebridError('No matching files found after filtering');
 
-      const selectedFiles = this.filterFiles(files).map(file => file.id);
-
-      if (selectedFiles.length === 0) {
-        throw new RealDebridError('No matching files found');
-      }
-
-      await this.#realDebridService.selectFiles(torrentId, selectedFiles.join(','));
-      return selectedFiles.length;
+      await this.#api.selectFiles(torrentId, chosen.join(','));
+      return chosen.length;
     }
   }
 
-  // UI Utilities
+  /* UI Manager */
   class UIManager {
+    // Build and return modal dialog DOM. Caller must append it to document.
     static createConfigDialog(currentConfig) {
       const dialog = document.createElement('div');
       dialog.innerHTML = `
@@ -328,118 +316,278 @@
           </div>
       `;
 
-      // Add hover effects
       const saveBtn = dialog.querySelector('#saveBtn');
       const cancelBtn = dialog.querySelector('#cancelBtn');
 
       saveBtn.addEventListener('mouseover', () => saveBtn.style.background = '#2980b9');
-      saveBtn.addEventListener('mouseout', () => saveBtn.style.background = '#3498db');
+      saveBtn.addEventListener('mouseout', () => saveBtn.style.background = '#4db6ac');
 
       cancelBtn.addEventListener('mouseover', () => cancelBtn.style.background = '#c0392b');
-      cancelBtn.addEventListener('mouseout', () => cancelBtn.style.background = '#e74c3c');
+      cancelBtn.addEventListener('mouseout', () => cancelBtn.style.background = '#e57373');
+
+      // ESC key handler: remove dialog on Escape
+      const escHandler = (e) => {
+        if (e.key === 'Escape') {
+          if (dialog.parentNode) dialog.parentNode.removeChild(dialog);
+          document.removeEventListener('keydown', escHandler);
+        }
+      };
+      document.addEventListener('keydown', escHandler);
+      dialog._escHandler = escHandler;
 
       return dialog;
     }
 
-    static displayMessage(message, type = 'info') {
-      const colors = {
-        'success': 'green',
-        'error': 'red',
-        'info': 'blue'
-      };
-
+    static showToast(message, type = 'info') {
+      const colors = { success: '#16a34a', error: '#dc2626', info: '#2563eb' };
       const msgDiv = document.createElement('div');
       Object.assign(msgDiv.style, {
         position: 'fixed',
         bottom: '20px',
         left: '20px',
-        backgroundColor: colors[type],
+        backgroundColor: colors[type] || colors.info,
         color: 'white',
-        padding: '10px',
-        borderRadius: '5px',
-        zIndex: 10000
+        padding: '10px 14px',
+        borderRadius: '8px',
+        zIndex: 10000,
+        fontWeight: '600'
       });
-
       msgDiv.textContent = message;
       document.body.appendChild(msgDiv);
       setTimeout(() => msgDiv.remove(), 3000);
     }
 
-    static addMagnetIcon(link) {
+    static createMagnetIcon() {
       const icon = document.createElement('img');
-      icon.src = 'https://fcdn.real-debrid.com/0830/favicons/favicon.ico';
+      icon.src = ICON_SRC;
       icon.style.cursor = 'pointer';
       icon.style.width = '16px';
       icon.style.marginLeft = '5px';
+      icon.setAttribute(INSERTED_ICON_ATTR, '1');
       return icon;
     }
   }
 
-  // Main Script Execution
-  async function initializeScript() {
-    try {
-      const config = ConfigManager.getConfig();
-      if (!config.apiKey) {
-        console.warn('Real-Debrid API key not configured');
-        return;
-      }
+  /* Page Integration: find magnet links & insert icons (one icon per unique magnet) */
+  class PageIntegrator {
+    constructor(processor = null) {
+      this.processor = processor;
+      this.observer = null;
+      this.config = ConfigManager.getConfig();
+      this.keyToIcon = new Map();
+      this._populateFromDOM();
+    }
 
-      const realDebridService = new RealDebridService(config.apiKey, config);
-      const magnetLinkProcessor = new MagnetLinkProcessor(config, realDebridService);
-      await magnetLinkProcessor.initialize();
+    setProcessor(processor) {
+      this.processor = processor;
+    }
 
-      const magnetLinks = document.querySelectorAll('a[href^="magnet:"]');
-      magnetLinks.forEach(link => {
-        const icon = UIManager.addMagnetIcon(link);
-        icon.addEventListener('click', async () => {
-          try {
-            await magnetLinkProcessor.processMagnetLink(link.href);
-            UIManager.displayMessage('Magnet link processed successfully!', 'success');
-            icon.style.filter = 'invert(50%)';
-          } catch (error) {
-            UIManager.displayMessage(error.message, 'error');
-            console.error(error);
+    _populateFromDOM() {
+      try {
+        const links = Array.from(document.querySelectorAll('a[href^="magnet:"]'));
+        links.forEach(link => {
+          const next = link.nextElementSibling;
+          if (next && next.getAttribute && next.getAttribute(INSERTED_ICON_ATTR)) {
+            const key = this._magnetKeyFor(link.href) || `href:${link.href.trim().toLowerCase()}`;
+            if (!this.keyToIcon.has(key)) this.keyToIcon.set(key, next);
           }
         });
+      } catch (e) {
+        // ignore DOM inspection errors
+      }
+    }
+
+    _magnetKeyFor(href) {
+      const hash = MagnetLinkProcessor.parseMagnetHash(href);
+      if (hash) return `hash:${hash}`;
+      try {
+        return `href:${href.trim().toLowerCase()}`;
+      } catch {
+        return `href:${String(href).trim().toLowerCase()}`;
+      }
+    }
+
+    // Attach click behavior to the icon: lazily initializes API and processes magnet
+    _attach(icon, link) {
+      icon.addEventListener('click', async (ev) => {
+        ev.preventDefault();
+
+        const key = this._magnetKeyFor(link.href);
+        const ok = await ensureApiInitialized();
+        if (!ok) {
+          UIManager.showToast('Real-Debrid API key not configured. Use the menu to set it.', 'info');
+          return;
+        }
+
+        if (key && key.startsWith('hash:') && this.processor && this.processor.isTorrentExists(key.split(':')[1])) {
+          UIManager.showToast('Torrent already exists on Real-Debrid', 'info');
+          icon.title = 'Already on Real-Debrid';
+          icon.style.filter = 'grayscale(100%)';
+          icon.style.opacity = '0.65';
+          return;
+        }
+
+        try {
+          const count = await this.processor.processMagnetLink(link.href);
+          UIManager.showToast(`Added to Real-Debrid — ${count} file(s) selected`, 'success');
+          icon.style.filter = 'grayscale(100%)';
+          icon.style.opacity = '0.65';
+          icon.title = 'Added to Real-Debrid';
+        } catch (err) {
+          UIManager.showToast(err && err.message ? err.message : 'Failed to process magnet', 'error');
+          console.error(err);
+        }
+      }, { once: false });
+    }
+
+    addIconsTo(documentRoot = document) {
+      const links = Array.from(documentRoot.querySelectorAll('a[href^="magnet:"]'));
+      const newlyAddedKeys = [];
+      links.forEach(link => {
+        if (!link.parentNode) return;
+        const next = link.nextElementSibling;
+        if (next && next.getAttribute && next.getAttribute(INSERTED_ICON_ATTR)) return;
+
+        const key = this._magnetKeyFor(link.href);
+        if (key && this.keyToIcon.has(key)) return;
+
+        const icon = UIManager.createMagnetIcon();
+        this._attach(icon, link);
         link.parentNode.insertBefore(icon, link.nextSibling);
+        const storeKey = key || `href:${link.href.trim().toLowerCase()}`;
+        this.keyToIcon.set(storeKey, icon);
+        newlyAddedKeys.push(storeKey);
       });
-    } catch (error) {
-      console.error('Script initialization failed', error);
+
+      if (newlyAddedKeys.length) {
+        ensureApiInitialized().then(ok => {
+          if (ok) this.markExistingTorrents();
+        });
+      }
+    }
+
+    markExistingTorrents() {
+      if (!this.processor) return;
+      for (const [key, icon] of this.keyToIcon.entries()) {
+        if (!key.startsWith('hash:')) continue;
+        const hash = key.split(':')[1];
+        if (this.processor.isTorrentExists(hash)) {
+          icon.title = 'Already on Real-Debrid';
+          icon.style.filter = 'grayscale(100%)';
+          icon.style.opacity = '0.65';
+        }
+      }
+    }
+
+    startObserving() {
+      if (this.observer) return;
+      this.observer = new MutationObserver(debounce((mutations) => {
+        for (const m of mutations) {
+          if (m.addedNodes && m.addedNodes.length) {
+            this.addIconsTo(document);
+            break;
+          }
+        }
+      }, 180));
+      this.observer.observe(document.body, { childList: true, subtree: true });
+    }
+
+    stopObserving() {
+      if (!this.observer) return;
+      this.observer.disconnect();
+      this.observer = null;
     }
   }
 
-  // Configuration Dialog Setup
-  GM_registerMenuCommand('Configure Real-Debrid Settings', () => {
-    const currentConfig = ConfigManager.getConfig();
-    const dialog = UIManager.createConfigDialog(currentConfig);
+  /* Lazy API initialization - only when needed; cached promise so it runs once */
+  let _apiInitPromise = null;
+  let _apiAvailable = false;
+  let _realDebridService = null;
+  let _magnetProcessor = null;
+  let _integratorInstance = null;
 
-    document.body.appendChild(dialog);
+  async function ensureApiInitialized() {
+    if (_apiInitPromise) return _apiInitPromise;
+    const cfg = ConfigManager.getConfig();
+    if (!cfg.apiKey) {
+      _apiAvailable = false;
+      return Promise.resolve(false);
+    }
 
-    const saveBtn = dialog.querySelector('#saveBtn');
-    const cancelBtn = dialog.querySelector('#cancelBtn');
+    try {
+      _realDebridService = new RealDebridService(cfg.apiKey, cfg);
+    } catch (e) {
+      console.warn('RealDebridService not created:', e);
+      _apiAvailable = false;
+      return Promise.resolve(false);
+    }
 
-    saveBtn.addEventListener('click', () => {
-      const newConfig = {
-        apiKey: dialog.querySelector('#apiKey').value.trim(),
-        allowedExtensions: dialog.querySelector('#extensions').value.split(',').map(e => e.trim()).filter(Boolean),
-        filterKeywords: dialog.querySelector('#keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-        debugMode: dialog.querySelector('#debugMode').checked
-      };
+    _magnetProcessor = new MagnetLinkProcessor(cfg, _realDebridService);
+    _apiInitPromise = _magnetProcessor.initialize()
+      .then(() => {
+        _apiAvailable = true;
+        if (_integratorInstance) {
+          _integratorInstance.setProcessor(_magnetProcessor);
+          _integratorInstance.markExistingTorrents();
+        }
+        return true;
+      })
+      .catch(err => {
+        console.warn('Failed to initialize Real-Debrid integration', err);
+        _apiAvailable = false;
+        return false;
+      });
 
-      try {
-        ConfigManager.saveConfig(newConfig);
-        document.body.removeChild(dialog);
-        UIManager.displayMessage('Configuration saved successfully!', 'success');
-      } catch (error) {
-        UIManager.displayMessage(error.message, 'error');
-      }
-    });
+    return _apiInitPromise;
+  }
 
-    cancelBtn.addEventListener('click', () => {
-      document.body.removeChild(dialog);
-    });
-  });
+  /* Initialization & Menu */
+  async function init() {
+    try {
+      _integratorInstance = new PageIntegrator(null);
+      _integratorInstance.addIconsTo();
+      _integratorInstance.startObserving();
 
-  // Script Auto-Initialization
-  initializeScript();
+      GM_registerMenuCommand('Configure Real-Debrid Settings', () => {
+        const currentCfg = ConfigManager.getConfig();
+        const dialog = UIManager.createConfigDialog(currentCfg);
+        document.body.appendChild(dialog);
+
+        const saveBtn = dialog.querySelector('#saveBtn');
+        const cancelBtn = dialog.querySelector('#cancelBtn');
+
+        saveBtn.addEventListener('click', () => {
+          const newCfg = {
+            apiKey: dialog.querySelector('#apiKey').value.trim(),
+            allowedExtensions: dialog.querySelector('#extensions').value.split(',').map(e => e.trim()).filter(Boolean),
+            filterKeywords: dialog.querySelector('#keywords').value.split(',').map(k => k.trim()).filter(Boolean),
+            debugMode: dialog.querySelector('#debugMode').checked
+          };
+          try {
+            ConfigManager.saveConfig(newCfg);
+            if (dialog.parentNode) document.body.removeChild(dialog);
+            if (dialog._escHandler) document.removeEventListener('keydown', dialog._escHandler);
+            UIManager.showToast('Configuration saved successfully!', 'success');
+            location.reload();
+          } catch (error) {
+            UIManager.showToast(error.message, 'error');
+          }
+        });
+
+        cancelBtn.addEventListener('click', () => {
+          if (dialog.parentNode) document.body.removeChild(dialog);
+          if (dialog._escHandler) document.removeEventListener('keydown', dialog._escHandler);
+        });
+
+        const apiInput = dialog.querySelector('#apiKey');
+        if (apiInput) apiInput.focus();
+      });
+    } catch (err) {
+      console.error('Initialization failed:', err);
+    }
+  }
+
+  // Run immediately
+  init();
+
 })();

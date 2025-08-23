@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.2.1
+// @version       3.2.2
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
@@ -51,7 +51,7 @@
     STREAMING_SITES: [
       { name: 'BrocoFlix', desc: 'Provides a direct link to the BrocoFlix streaming page for the selected title.' },
       { name: 'Cineby', desc: 'Provides a direct link to the Cineby streaming page for the selected title' },
-      { name: 'Freek', desc: 'Provides a direct link to the Freek streaming page for the selected title.' },
+      { name: 'Moviemaze', desc: 'Provides a direct link to the Moviemaze streaming page for the selected title.' },
       { name: 'P-Stream', desc: 'Provides a direct link to the P-Stream streaming page for the selected title.' },
       { name: 'Rive', desc: 'Provides a direct link to the Rive streaming page for the selected title.' },
       { name: 'Wovie', desc: 'Provides a direct link to the Wovie streaming page for the selected title.' },
@@ -61,7 +61,7 @@
       'Official Site', 'IMDb', 'TMDB', 'TVDB', 'Rotten Tomatoes', 'Metacritic',
       'Letterboxd', 'TVmaze', 'MyAnimeList', 'AniDB', 'AniList', 'Kitsu',
       'AniSearch', 'LiveChart', 'Fanart.tv', 'Mediux', 'BrocoFlix', 'Cineby',
-      'Freek', 'P-Stream', 'Rive', 'Wovie', 'XPrime', 'JustWatch',
+      'Moviemaze', 'P-Stream', 'Rive', 'Wovie', 'XPrime', 'JustWatch',
       'Wikipedia', 'Twitter', 'Facebook', 'Instagram'
     ]
   };
@@ -348,10 +348,10 @@
           requiredData: 'tmdbId'
         },
         {
-          name: 'Freek',
+          name: 'Moviemaze',
           url: () => {
             const show = this.mediaInfo.type === 'tv' ? `?season=${this.mediaInfo.season}&ep=${this.mediaInfo.episode}` : '';
-            return `https://freek.to/watch/${this.mediaInfo.type}/${this.mediaInfo.tmdbId}${show}`;
+            return `https://moviemaze.cc/watch/${this.mediaInfo.type}/${this.mediaInfo.tmdbId}${show}`;
           },
           condition: () => true,
           requiredData: 'tmdbId'
@@ -360,7 +360,7 @@
           name: 'P-Stream',
           url: () => {
             const show = this.mediaInfo.type === 'tv' ? `/${this.mediaInfo.season}/${this.mediaInfo.episode}` : '';
-            return `https://iframe.pstream.org/embed/tmdb-${this.mediaInfo.type}-${this.mediaInfo.tmdbId}${show}`;
+            return `https://iframe.pstream.mov/embed/tmdb-${this.mediaInfo.type}-${this.mediaInfo.tmdbId}${show}`;
           },
           condition: () => true,
           requiredData: 'tmdbId'

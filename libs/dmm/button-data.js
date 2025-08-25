@@ -5,7 +5,7 @@
 // @name         @journeyover/dmm-add-trash-buttons
 // @description  Adds trash buttons to DMM
 // @license      MIT
-// @version      1.0.0
+// @version      1.0.1
 // @homepageURL  https://github.com/StylusThemes/Userscripts
 // ==/UserScript==
 

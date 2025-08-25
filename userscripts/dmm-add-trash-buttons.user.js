@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.0.0
+// @version       2.0.1
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
 // @match         *://debridmediamanager.com/*
-// @require       https://cdn.staticdelivr.com/gh/StylusThemes/Userscripts/refs/heads/main/libs/dmm/button-data.min.js?version=1.0.0
+// @require       https://cdn.staticdelivr.com/gh/StylusThemes/Userscripts/refs/heads/main/libs/dmm/button-data.min.js?version=1.0.1
 // @grant         none
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts

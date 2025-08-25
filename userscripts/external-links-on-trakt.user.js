@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.2.2
+// @version       3.2.3
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
 // @match         *://trakt.tv/*
-// @require       https://cdn.staticdelivr.com/gh/StylusThemes/Userscripts/refs/heads/main/libs/wikidata/index.min.js?version=1.1.0
-// @require       https://cdn.staticdelivr.com/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
-// @require       https://cdn.staticdelivr.com/npm/jquery@3.7.1/dist/jquery.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/wikidata/index.min.js
+// @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
+// @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue
 // @grant         GM.getValue
 // @grant         GM.listValues
@@ -23,7 +24,7 @@
 
 /* global $, NodeCreationObserver, Wikidata */
 
-(() => {
+(function() {
   'use strict';
 
   // ==============================
@@ -32,30 +33,82 @@
   const CONSTANTS = {
     CACHE_DURATION: 36e5, // 1 hour in milliseconds
     SCRIPT_ID: GM.info.script.name.toLowerCase().replace(/\s/g, '-'),
-    CONFIG_KEY: 'enhanced-trakt-links-config',
+    CONFIG_KEY: 'external-trakt-links-config',
     TITLE: `${GM.info.script.name} Settings`,
     SCRIPT_NAME: GM.info.script.name,
-    METADATA_SITES: [
-      { name: 'Rotten Tomatoes', desc: 'Provides a direct link to Rotten Tomatoes for the selected title.' },
-      { name: 'Metacritic', desc: 'Provides a direct link to Metacritic for the selected title.' },
-      { name: 'Letterboxd', desc: 'Provides a direct link to Letterboxd for the selected title.' },
-      { name: 'TVmaze', desc: 'Provides a direct link to TVmaze for the selected title.' },
-      { name: 'Mediux', desc: 'Provides a direct link to the Mediux Poster site for the selected title.' },
-      { name: 'MyAnimeList', desc: 'Provides a direct link to MyAnimeList for the selected title.' },
-      { name: 'AniDB', desc: 'Provides a direct link to AniDB for the selected title.' },
-      { name: 'AniList', desc: 'Provides a direct link to AniList for the selected title.' },
-      { name: 'Kitsu', desc: 'Provides a direct link to Kitsu for the selected title.' },
-      { name: 'AniSearch', desc: 'Provides a direct link to AniSearch for the selected title.' },
-      { name: 'LiveChart', desc: 'Provides a direct link to LiveChart for the selected title.' },
+    METADATA_SITES: [{
+        name: 'Rotten Tomatoes',
+        desc: 'Provides a direct link to Rotten Tomatoes for the selected title.'
+      },
+      {
+        name: 'Metacritic',
+        desc: 'Provides a direct link to Metacritic for the selected title.'
+      },
+      {
+        name: 'Letterboxd',
+        desc: 'Provides a direct link to Letterboxd for the selected title.'
+      },
+      {
+        name: 'TVmaze',
+        desc: 'Provides a direct link to TVmaze for the selected title.'
+      },
+      {
+        name: 'Mediux',
+        desc: 'Provides a direct link to the Mediux Poster site for the selected title.'
+      },
+      {
+        name: 'MyAnimeList',
+        desc: 'Provides a direct link to MyAnimeList for the selected title.'
+      },
+      {
+        name: 'AniDB',
+        desc: 'Provides a direct link to AniDB for the selected title.'
+      },
+      {
+        name: 'AniList',
+        desc: 'Provides a direct link to AniList for the selected title.'
+      },
+      {
+        name: 'Kitsu',
+        desc: 'Provides a direct link to Kitsu for the selected title.'
+      },
+      {
+        name: 'AniSearch',
+        desc: 'Provides a direct link to AniSearch for the selected title.'
+      },
+      {
+        name: 'LiveChart',
+        desc: 'Provides a direct link to LiveChart for the selected title.'
+      },
     ],
-    STREAMING_SITES: [
-      { name: 'BrocoFlix', desc: 'Provides a direct link to the BrocoFlix streaming page for the selected title.' },
-      { name: 'Cineby', desc: 'Provides a direct link to the Cineby streaming page for the selected title' },
-      { name: 'Moviemaze', desc: 'Provides a direct link to the Moviemaze streaming page for the selected title.' },
-      { name: 'P-Stream', desc: 'Provides a direct link to the P-Stream streaming page for the selected title.' },
-      { name: 'Rive', desc: 'Provides a direct link to the Rive streaming page for the selected title.' },
-      { name: 'Wovie', desc: 'Provides a direct link to the Wovie streaming page for the selected title.' },
-      { name: 'XPrime', desc: 'Provides a direct link to the XPrime streaming page for the selected title.' },
+    STREAMING_SITES: [{
+        name: 'BrocoFlix',
+        desc: 'Provides a direct link to the BrocoFlix streaming page for the selected title.'
+      },
+      {
+        name: 'Cineby',
+        desc: 'Provides a direct link to the Cineby streaming page for the selected title'
+      },
+      {
+        name: 'Moviemaze',
+        desc: 'Provides a direct link to the Moviemaze streaming page for the selected title.'
+      },
+      {
+        name: 'P-Stream',
+        desc: 'Provides a direct link to the P-Stream streaming page for the selected title.'
+      },
+      {
+        name: 'Rive',
+        desc: 'Provides a direct link to the Rive streaming page for the selected title.'
+      },
+      {
+        name: 'Wovie',
+        desc: 'Provides a direct link to the Wovie streaming page for the selected title.'
+      },
+      {
+        name: 'XPrime',
+        desc: 'Provides a direct link to the XPrime streaming page for the selected title.'
+      },
     ],
     LINK_ORDER: [
       'Official Site', 'IMDb', 'TMDB', 'TVDB', 'Rotten Tomatoes', 'Metacritic',
@@ -80,7 +133,9 @@
   class TraktExternalLinks {
     constructor() {
       // Initialize with default configuration
-      this.config = { ...DEFAULT_CONFIG };
+      this.config = {
+        ...DEFAULT_CONFIG
+      };
       this.wikidata = null;      // Wikidata API instance
       this.mediaInfo = null;     // Current media item metadata
       this.linkSettings = [      // All supported link settings
@@ -128,7 +183,10 @@
     }
 
     logInitialization() {
-      const { version, author } = GM.info.script;
+      const {
+        version,
+        author
+      } = GM.info.script;
       const headerStyle = 'color:red;font-weight:bold;font-size:18px;';
       const versionText = version ? `v${version} ` : '';
 
@@ -145,15 +203,20 @@
 
     async loadConfig() {
       // Load saved configuration from storage
-      const savedConfig = await GM.getValue(CONSTANTS.CONFIG_KEY);
+      const savedConfig = await GMC.getValue(CONSTANTS.CONFIG_KEY);
       if (savedConfig) {
-        this.config = { ...DEFAULT_CONFIG, ...savedConfig };
+        this.config = {
+          ...DEFAULT_CONFIG,
+          ...savedConfig
+        };
       }
     }
 
     initializeWikidata() {
       // Initialize Wikidata API with debugging option
-      this.wikidata = new Wikidata({ debug: this.config.debugging });
+      this.wikidata = new Wikidata({
+        debug: this.config.debugging
+      });
     }
 
     // ======================
@@ -242,8 +305,8 @@
           const $el = $(el);
           // Check data-site first, then data-original-title, then text
           return $el.data('site') ||
-                 $el.data('original-title') ||
-                 $el.text().trim();
+            $el.data('original-title') ||
+            $el.text().trim();
         };
 
         // Normalize the key for comparison
@@ -272,7 +335,7 @@
     // ======================
     async processWikidataLinks() {
       // Handle Wikidata links with caching
-      const cache = await GM.getValue(this.mediaInfo.imdbId);
+      const cache = await GMC.getValue(this.mediaInfo.imdbId);
 
       if (this.isCacheValid(cache)) {
         this.debug('Using cached Wikidata data');
@@ -283,7 +346,7 @@
       try {
         // Fetch fresh data from Wikidata API
         const data = await this.wikidata.links(this.mediaInfo.imdbId, 'IMDb', this.mediaInfo.type);
-        await GM.setValue(this.mediaInfo.imdbId, {
+        await GMC.setValue(this.mediaInfo.imdbId, {
           links: data.links,
           item: data.item,
           time: Date.now()
@@ -316,8 +379,7 @@
     // ======================
     addCustomLinks() {
       // Define custom link templates and conditions
-      const customLinks = [
-        {
+      const customLinks = [{
           name: 'Letterboxd',
           url: () => `https://letterboxd.com/tmdb/${this.mediaInfo.tmdbId}`,
           condition: () => this.mediaInfo.type === 'movie',
@@ -445,12 +507,12 @@
 
     async clearExpiredCache() {
       // Clear expired cache entries
-      const values = await GM.listValues();
+      const values = await GMC.listValues();
       for (const value of values) {
         if (value === CONSTANTS.CONFIG_KEY) continue;
-        const cache = await GM.getValue(value);
+        const cache = await GMC.getValue(value);
         if (cache?.time && (Date.now() - cache.time) > CONSTANTS.CACHE_DURATION) {
-          await GM.deleteValue(value);
+          await GMC.deleteValue(value);
         }
       }
     }
@@ -558,16 +620,16 @@
           this.config[site.name] = $(`#${checkboxId}`).is(':checked');
         });
 
-        await GM.setValue(CONSTANTS.CONFIG_KEY, this.config);
+        await GMC.setValue(CONSTANTS.CONFIG_KEY, this.config);
         $(`#${CONSTANTS.SCRIPT_ID}-config`).remove();
         window.location.reload();
       });
 
       $('#clear-cache').click(async () => {
-        const values = await GM.listValues();
+        const values = await GMC.listValues();
         for (const value of values) {
           if (value === CONSTANTS.CONFIG_KEY) continue;
-          await GM.deleteValue(value);
+          await GMC.deleteValue(value);
         }
         this.info('Cache cleared (excluding config)');
         $(`#${CONSTANTS.SCRIPT_ID}-config`).remove();

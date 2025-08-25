@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.0.1
+// @version       2.0.2
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
 // @match         *://debridmediamanager.com/*
-// @require       https://cdn.staticdelivr.com/gh/StylusThemes/Userscripts/refs/heads/main/libs/dmm/button-data.min.js?version=1.0.1
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/dmm/button-data.min.js
 // @grant         none
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
@@ -13,12 +13,12 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
 // ==/UserScript==
 
-(function () {
+(function() {
   'use strict';
 
   /* ===========================
-     Config
-     =========================== */
+      Config
+      =========================== */
   const CONFIG = {
     CONTAINER_SELECTOR: '.mb-2',
     RELEVANT_PAGE_RX: /debridmediamanager\.com\/(movie|show)\/[^\/]+/,
@@ -31,8 +31,8 @@
   const BUTTON_DATA = Array.isArray(window?.DMM_BUTTON_DATA) ? window.DMM_BUTTON_DATA : [];
 
   /* ===========================
-     Small helpers
-     =========================== */
+      Small helpers
+      =========================== */
   const qs = (sel, root = document) => root.querySelector(sel);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const isVisible = el => !!(el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden');
@@ -51,12 +51,20 @@
       el.value = value;
     }
     // focus + move cursor to end
-    try { el.focus(); } catch (e) {}
-    try { if (typeof el.setSelectionRange === 'function') el.setSelectionRange(value.length, value.length); } catch (e) {}
+    try {
+      el.focus();
+    } catch (e) {}
+    try {
+      if (typeof el.setSelectionRange === 'function') el.setSelectionRange(value.length, value.length);
+    } catch (e) {}
 
     // events
-    el.dispatchEvent(new Event('input', { bubbles: true }));
-    el.dispatchEvent(new Event('change', { bubbles: true }));
+    el.dispatchEvent(new Event('input', {
+      bubbles: true
+    }));
+    el.dispatchEvent(new Event('change', {
+      bubbles: true
+    }));
     // React internals fallback
     try {
       if (el._valueTracker && typeof el._valueTracker.setValue === 'function') {
@@ -75,8 +83,8 @@
   };
 
   /* ===========================
-     Inject CSS
-     =========================== */
+      Inject CSS
+      =========================== */
   (function injectStyles() {
     const p = CONFIG.CSS_CLASS_PREFIX;
     const css = `
@@ -92,8 +100,8 @@
   })();
 
   /* ===========================
-     ButtonManager - manages dropdowns and interactions
-     =========================== */
+      ButtonManager - manages dropdowns and interactions
+      =========================== */
   class ButtonManager {
     constructor() {
       /** Map<string, {button:HTMLElement, menu:HTMLElement}> */
@@ -106,7 +114,11 @@
 
     cleanup() {
       // remove elements & listeners
-      for (const { button, menu } of this.dropdowns.values()) {
+      for (const {
+          button,
+          menu
+        }
+        of this.dropdowns.values()) {
         button.remove();
         menu.remove();
       }
@@ -129,7 +141,10 @@
         const menu = this._createMenu(spec.buttonData || [], name);
         document.body.appendChild(menu);
         this.container.appendChild(btn);
-        this.dropdowns.set(name, { button: btn, menu });
+        this.dropdowns.set(name, {
+          button: btn,
+          menu
+        });
         // attach button click
         btn.addEventListener('click', (ev) => {
           ev.stopPropagation();
@@ -174,7 +189,10 @@
     toggleMenu(name) {
       const entry = this.dropdowns.get(name);
       if (!entry) return;
-      const { button, menu } = entry;
+      const {
+        button,
+        menu
+      } = entry;
       if (this.openMenu && this.openMenu !== menu) this.openMenu.style.display = 'none';
       if (menu.style.display === 'block') {
         menu.style.display = 'none';
@@ -238,14 +256,17 @@
       try {
         setInputValueReactive(target, value || '');
       } catch (err) {
-        console.error('dmm-tg: failed to set input value', err, { value, name });
+        console.error('dmm-tg: failed to set input value', err, {
+          value,
+          name
+        });
       }
     }
   }
 
   /* ===========================
-     PageManager - watches for SPA navigations / DOM changes
-     =========================== */
+      PageManager - watches for SPA navigations / DOM changes
+      =========================== */
   class PageManager {
     constructor() {
       this.buttonManager = new ButtonManager();
@@ -261,8 +282,14 @@
     setupHistoryHooks() {
       const push = history.pushState;
       const replace = history.replaceState;
-      history.pushState = function pushState(...args) { push.apply(this, args); window.dispatchEvent(new Event('dmm:nav')); };
-      history.replaceState = function replaceState(...args) { replace.apply(this, args); window.dispatchEvent(new Event('dmm:nav')); };
+      history.pushState = function pushState(...args) {
+        push.apply(this, args);
+        window.dispatchEvent(new Event('dmm:nav'));
+      };
+      history.replaceState = function replaceState(...args) {
+        replace.apply(this, args);
+        window.dispatchEvent(new Event('dmm:nav'));
+      };
       window.addEventListener('popstate', () => window.dispatchEvent(new Event('dmm:nav')));
       window.addEventListener('hashchange', () => window.dispatchEvent(new Event('dmm:nav')));
       window.addEventListener('dmm:nav', () => {
@@ -281,7 +308,10 @@
           }
         }
       });
-      this.mutationObserver.observe(document.body, { childList: true, subtree: true });
+      this.mutationObserver.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
     }
 
     checkPage() {
@@ -313,8 +343,8 @@
   }
 
   /* ===========================
-     Boot
-     =========================== */
+      Boot
+      =========================== */
   function ready(fn) {
     if (document.readyState !== 'loading') fn();
     else document.addEventListener('DOMContentLoaded', fn);

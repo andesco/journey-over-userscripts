@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Nexus Mod - Updated Mod Highlighter
-// @version       1.0.0
+// @version       1.0.1
 // @description   Highlight mods that have updated since you last downloaded them
 // @author        Journey Over
 // @license       MIT
@@ -16,37 +16,37 @@
   'use strict';
 
   function whenAvailable(jQuery, cb) {
-      var interval = 200; // ms
-      window.setTimeout(function() {
-          var loadingIndicator = jQuery("p.history_loading");
-          if (loadingIndicator !== undefined && loadingIndicator.css("display") === "none") {
-              cb(jQuery);
-          } else {
-              whenAvailable(cb, jQuery);
-          }
-      }, interval);
+    var interval = 200; // ms
+    window.setTimeout(function() {
+      var loadingIndicator = jQuery("p.history_loading");
+      if (loadingIndicator !== undefined && loadingIndicator.css("display") === "none") {
+        cb(jQuery);
+      } else {
+        whenAvailable(cb, jQuery);
+      }
+    }, interval);
   }
 
   //var slowButton = document.getElementById('slowDownloadButton');
   jQuery(document).ready(function() {
-      whenAvailable(jQuery, function() {
-          var rows = jQuery("tr.even,tr.odd");
+    whenAvailable(jQuery, function() {
+      var rows = jQuery("tr.even,tr.odd");
 
-          rows.each(function() {
-              var downloadDate = jQuery(this).children("td.table-download").text();
-              var updateDate = jQuery(this).children("td.table-update").text();
+      rows.each(function() {
+        var downloadDate = jQuery(this).children("td.table-download").text();
+        var updateDate = jQuery(this).children("td.table-update").text();
 
-              try {
-                  var dateDl = Date.parse(downloadDate);
-                  var dateUp = Date.parse(updateDate);
+        try {
+          var dateDl = Date.parse(downloadDate);
+          var dateUp = Date.parse(updateDate);
 
-                  if (dateDl < dateUp) {
-                      jQuery(this).children("td").css("background-color", "#444400");
-                  }
-              } catch (error) {
-                  console.log("Err? " + error)
-              }
-          });
+          if (dateDl < dateUp) {
+            jQuery(this).children("td").css("background-color", "#444400");
+          }
+        } catch (error) {
+          console.log("Err? " + error)
+        }
       });
+    });
   });
 })();

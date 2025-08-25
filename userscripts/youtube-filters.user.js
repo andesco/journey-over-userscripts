@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name          YouTube - Filters
-// @version       1.4.3
+// @version       1.4.4
 // @description   Filters YouTube videos by duration and age. Hides videos less than X seconds long or older than a specified number of years, excluding channel video tabs.
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.youtube.com/*
-// @grant         GM_setValue
-// @grant         GM_getValue
-// @grant         GM_registerMenuCommand
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @grant         GM.setValue
+// @grant         GM.getValue
+// @grant         GM.registerMenuCommand
 // @run-at        document-body
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
@@ -15,13 +16,13 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/youtube-filters.user.js
 // ==/UserScript==
 
-(function() {
+(async function() {
   'use strict';
 
-  // Retrieve settings or use defaults
-  const MIN_DURATION_SECONDS = GM_getValue('MIN_DURATION_SECONDS', 120);
-  const AGE_THRESHOLD_YEARS = GM_getValue('AGE_THRESHOLD_YEARS', 4);
-  const ENABLE_CONSOLE_LOGS = GM_getValue('ENABLE_CONSOLE_LOGS', true);
+  // Retrieve settings or use defaults via GMC (async)
+  const MIN_DURATION_SECONDS = await GMC.getValue('MIN_DURATION_SECONDS', 120);
+  const AGE_THRESHOLD_YEARS = await GMC.getValue('AGE_THRESHOLD_YEARS', 4);
+  const ENABLE_CONSOLE_LOGS = await GMC.getValue('ENABLE_CONSOLE_LOGS', true);
 
   const processedVideos = new Set(); // To keep track of processed video containers
   let scheduledFilter = null; // throttle flag for mutation observer
@@ -65,13 +66,13 @@
     const saveButton = document.getElementById('save-settings');
     const closeButton = document.getElementById('close-settings');
 
-    saveButton.addEventListener('click', () => {
+    saveButton.addEventListener('click', async () => {
       const newMinDuration = parseInt(document.getElementById('min-duration').value, 10);
       const newAgeThreshold = parseInt(document.getElementById('age-threshold').value, 10);
       const newEnableLogs = document.getElementById('enable-logs').checked;
-      GM_setValue('MIN_DURATION_SECONDS', newMinDuration);
-      GM_setValue('AGE_THRESHOLD_YEARS', newAgeThreshold);
-      GM_setValue('ENABLE_CONSOLE_LOGS', newEnableLogs);
+      await GMC.setValue('MIN_DURATION_SECONDS', newMinDuration);
+      await GMC.setValue('AGE_THRESHOLD_YEARS', newAgeThreshold);
+      await GMC.setValue('ENABLE_CONSOLE_LOGS', newEnableLogs);
       alert('Settings saved!');
       settingsContainer.remove();
       window.location.reload();
@@ -82,7 +83,8 @@
     });
   }
 
-  GM_registerMenuCommand('Open YouTube Filters Settings', openSettingsMenu);
+  // register menu command
+  GMC.registerMenuCommand('Open YouTube Filters Settings', openSettingsMenu);
 
   /* ---------------- Utilities ---------------- */
   function convertDurationToSeconds(durationText) {
@@ -118,7 +120,10 @@
         years: yearsMatch ? parseInt(yearsMatch[1], 10) : 0
       };
     }
-    return { text: 'Unknown', years: 0 };
+    return {
+      text: 'Unknown',
+      years: 0
+    };
   }
 
   function getVideoTitle(container) {
@@ -198,7 +203,10 @@
       const title = getVideoTitle(container);
       const durationText = getDurationText(container) || '';
       const durationInSeconds = convertDurationToSeconds(durationText);
-      const { text: videoAgeText, years: videoAgeInYears } = getVideoAgeTextAndYears(container);
+      const {
+        text: videoAgeText,
+        years: videoAgeInYears
+      } = getVideoAgeTextAndYears(container);
 
       if (isShortVideo(durationInSeconds)) {
         if (ENABLE_CONSOLE_LOGS) {
@@ -233,7 +241,10 @@
     }, 250); // small throttle
   });
 
-  observer.observe(document.body, { childList: true, subtree: true });
+  observer.observe(document.body, {
+    childList: true,
+    subtree: true
+  });
 
   // Initial run after a short delay to allow content to render
   setTimeout(filterVideos, 600);

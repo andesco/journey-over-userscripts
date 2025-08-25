@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name          Mediux - Yaml Fixes
-// @version       2.0.0
+// @version       2.0.1
 // @description   Adds fixes and functions to Mediux
 // @author        Journey Over
 // @license       MIT
 // @match         *://mediux.pro/*
 // @require       https://ajax.googleapis.com/ajax/libs/jquery/3.7.1/jquery.min.js
-// @grant         GM_xmlhttpRequest
-// @grant         GM_setValue
-// @grant         GM_getValue
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @grant         GM.xmlHttpRequest
+// @grant         GM.setValue
+// @grant         GM.getValue
 // @run-at        document-end
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=mediux.pro
 // @homepageURL   https://github.com/StylusThemes/Userscripts
@@ -185,7 +186,7 @@ const MediuxFixes = {
           const fullJson = `{"set":${jsonString}`;
           const parsedObject = JSON.parse(fullJson.substring(0, fullJson.length - 2));
           // Store the creator's username for later use
-          GM_setValue('creator', parsedObject.set.user_created.username);
+          GMC.setValue('creator', parsedObject.set.user_created.username);
           return parsedObject.set.boxset.sets;
         }
       }
@@ -193,13 +194,13 @@ const MediuxFixes = {
     },
 
     /**
-     * Fetches a specific set by ID using GM_xmlhttpRequest
+     * Fetches a specific set by ID
      * @param {string} setId - The ID of the set to fetch
      * @returns {Promise<string>} - HTML content of the set page
      */
     getSet(setId) {
       return new Promise((resolve, reject) => {
-        GM_xmlhttpRequest({
+        GMC.xmlHttpRequest({
           method: 'GET',
           url: `https://mediux.pro/sets/${setId}`,
           timeout: 30000,
@@ -230,7 +231,7 @@ const MediuxFixes = {
       const button = document.querySelector('#bsetbutton');
       let originalText = codeblock.textContent + '\n';
       const sets = MediuxFixes.data.getSets();
-      const creator = GM_getValue('creator');
+      const creator = await GMC.getValue('creator');
       const startTime = Date.now();
       let elapsedTime = 0;
       let processedMovies = [];
@@ -283,8 +284,7 @@ const MediuxFixes = {
                   originalText += `  ${movieId}: # ${movieTitle} Poster by ${creator} on MediUX.  https://mediux.pro/sets/${set.id}\n    url_poster: https://api.mediux.pro/assets/${posterId}\n    `;
                   processedMovies.push(movieTitle);
                   console.log(`Title: ${movieTitle}\nPoster: ${posterId}`);
-                }
-                else if (f.movie_id_backdrop !== null) {
+                } else if (f.movie_id_backdrop !== null) {
                   // Handle movie backdrops
                   const backdropId = f.fileType === 'backdrop' && f.id.length > 0 ? f.id : 'N/A';
                   const movieId = MediuxFixes.utils.isNonEmptyObject(f.movie_id_backdrop) ? f.movie_id_backdrop.id : 'N/A';
@@ -495,8 +495,7 @@ const MediuxFixes = {
       const myleftdiv = document.querySelector('#myleftdiv');
 
       // Define button configurations
-      const buttons = [
-        {
+      const buttons = [{
           id: 'fcbutton',
           title: 'Fix missing season numbers in TitleCard YAML',
           icon: '<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-puzzle w-5 h-5"><path d="M7 2h10"></path><path d="M5 6h14"></path><rect width="18" height="12" x="3" y="10" rx="2"></rect></svg>',
@@ -570,18 +569,22 @@ MediuxFixes.init();
  * @param {string} iframeSelector - Optional selector for iframe to search in
  */
 function waitForKeyElements(
-  selectorTxt,    /* Required: The jQuery selector string that
-                      specifies the desired element(s).
-                  */
-  actionFunction, /* Required: The code to run when elements are
-                      found. It is passed a jNode to the matched
-                      element.
-                  */
-  bWaitOnce,      /* Optional: If false, will continue to scan for
-                      new elements even after the first match is
-                      found.
-                  */
-  iframeSelector  /* Optional: If set, identifies the iframe to
+  selectorTxt,
+  /* Required: The jQuery selector string that
+                    specifies the desired element(s).
+                */
+  actionFunction,
+  /* Required: The code to run when elements are
+                       found. It is passed a jNode to the matched
+                       element.
+                   */
+  bWaitOnce,
+  /* Optional: If false, will continue to scan for
+                  new elements even after the first match is
+                  found.
+              */
+  iframeSelector
+  /* Optional: If set, identifies the iframe to
                       search.
                   */
 ) {
@@ -591,14 +594,14 @@ function waitForKeyElements(
     targetNodes = jQuery(selectorTxt);
   else
     targetNodes = jQuery(iframeSelector).contents()
-      .find(selectorTxt);
+    .find(selectorTxt);
 
   if (targetNodes && targetNodes.length > 0) {
     btargetsFound = true;
     /*--- Found target node(s). Go through each and act if they
         are new.
     */
-    targetNodes.each(function () {
+    targetNodes.each(function() {
       var jThis = jQuery(this);
       var alreadyFound = jThis.data('alreadyFound') || false;
 
@@ -611,8 +614,7 @@ function waitForKeyElements(
           jThis.data('alreadyFound', true);
       }
     });
-  }
-  else {
+  } else {
     btargetsFound = false;
   }
 
@@ -626,17 +628,16 @@ function waitForKeyElements(
     //--- The only condition where we need to clear the timer.
     clearInterval(timeControl);
     delete controlObj[controlKey]
-  }
-  else {
+  } else {
     //--- Set a timer, if needed.
     if (!timeControl) {
-      timeControl = setInterval(function () {
-        waitForKeyElements(selectorTxt,
-          actionFunction,
-          bWaitOnce,
-          iframeSelector
-        );
-      },
+      timeControl = setInterval(function() {
+          waitForKeyElements(selectorTxt,
+            actionFunction,
+            bWaitOnce,
+            iframeSelector
+          );
+        },
         300
       );
       controlObj[controlKey] = timeControl;

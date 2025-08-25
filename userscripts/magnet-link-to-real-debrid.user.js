@@ -1,14 +1,15 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.3.0
+// @version       2.3.1
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT
 // @match         *://*/*
-// @grant         GM_xmlhttpRequest
-// @grant         GM_getValue
-// @grant         GM_setValue
-// @grant         GM_registerMenuCommand
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @grant         GM.xmlHttpRequest
+// @grant         GM.getValue
+// @grant         GM.setValue
+// @grant         GM.registerMenuCommand
 // @connect       api.real-debrid.com
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=real-debrid.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
@@ -16,7 +17,7 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/magnet-link-to-real-debrid.user.js
 // ==/UserScript==
 
-(() => {
+(function() {
   'use strict';
 
   /* Constants & Utilities */
@@ -69,16 +70,19 @@
       }
     }
 
-    static getConfig() {
-      const stored = GM_getValue(STORAGE_KEY);
+    static async getConfig() {
+      const stored = await GMC.getValue(STORAGE_KEY);
       const parsed = this._safeParse(stored) || {};
-      return { ...DEFAULTS, ...parsed };
+      return {
+        ...DEFAULTS,
+        ...parsed
+      };
     }
 
     // Persist configuration; API key required
-    static saveConfig(cfg) {
+    static async saveConfig(cfg) {
       if (!cfg || !cfg.apiKey) throw new ConfigurationError('API Key is required');
-      GM_setValue(STORAGE_KEY, JSON.stringify(cfg));
+      await GMC.setValue(STORAGE_KEY, JSON.stringify(cfg));
     }
 
     static validateConfig(cfg) {
@@ -90,12 +94,14 @@
     }
   }
 
-  /* Real-Debrid Service (wraps GM_xmlhttpRequest) */
+  /* Real-Debrid Service */
   class RealDebridService {
     #apiKey;
     #debug;
 
-    constructor(apiKey, { debugMode = false } = {}) {
+    constructor(apiKey, {
+      debugMode = false
+    } = {}) {
       if (!apiKey) throw new ConfigurationError('API Key required');
       this.#apiKey = apiKey;
       this.#debug = Boolean(debugMode);
@@ -113,7 +119,7 @@
 
         this.#log('request', method, url, data);
 
-        GM_xmlhttpRequest({
+        GMC.xmlHttpRequest({
           method,
           url,
           headers: {
@@ -154,7 +160,9 @@
     }
 
     addMagnet(magnet) {
-      return this.#request('POST', '/torrents/addMagnet', { magnet });
+      return this.#request('POST', '/torrents/addMagnet', {
+        magnet
+      });
     }
 
     getTorrentInfo(torrentId) {
@@ -162,7 +170,9 @@
     }
 
     selectFiles(torrentId, filesCsv) {
-      return this.#request('POST', `/torrents/selectFiles/${torrentId}`, { files: filesCsv });
+      return this.#request('POST', `/torrents/selectFiles/${torrentId}`, {
+        files: filesCsv
+      });
     }
 
     getExistingTorrents() {
@@ -339,7 +349,11 @@
     }
 
     static showToast(message, type = 'info') {
-      const colors = { success: '#16a34a', error: '#dc2626', info: '#2563eb' };
+      const colors = {
+        success: '#16a34a',
+        error: '#dc2626',
+        info: '#2563eb'
+      };
       const msgDiv = document.createElement('div');
       Object.assign(msgDiv.style, {
         position: 'fixed',
@@ -373,7 +387,7 @@
     constructor(processor = null) {
       this.processor = processor;
       this.observer = null;
-      this.config = ConfigManager.getConfig();
+      this.configPromise = ConfigManager.getConfig();
       this.keyToIcon = new Map();
       this._populateFromDOM();
     }
@@ -437,7 +451,9 @@
           UIManager.showToast(err && err.message ? err.message : 'Failed to process magnet', 'error');
           console.error(err);
         }
-      }, { once: false });
+      }, {
+        once: false
+      });
     }
 
     addIconsTo(documentRoot = document) {
@@ -489,7 +505,10 @@
           }
         }
       }, 180));
-      this.observer.observe(document.body, { childList: true, subtree: true });
+      this.observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
     }
 
     stopObserving() {
@@ -508,7 +527,7 @@
 
   async function ensureApiInitialized() {
     if (_apiInitPromise) return _apiInitPromise;
-    const cfg = ConfigManager.getConfig();
+    const cfg = await ConfigManager.getConfig();
     if (!cfg.apiKey) {
       _apiAvailable = false;
       return Promise.resolve(false);
@@ -548,15 +567,15 @@
       _integratorInstance.addIconsTo();
       _integratorInstance.startObserving();
 
-      GM_registerMenuCommand('Configure Real-Debrid Settings', () => {
-        const currentCfg = ConfigManager.getConfig();
+      GMC.registerMenuCommand('Configure Real-Debrid Settings', async () => {
+        const currentCfg = await ConfigManager.getConfig();
         const dialog = UIManager.createConfigDialog(currentCfg);
         document.body.appendChild(dialog);
 
         const saveBtn = dialog.querySelector('#saveBtn');
         const cancelBtn = dialog.querySelector('#cancelBtn');
 
-        saveBtn.addEventListener('click', () => {
+        saveBtn.addEventListener('click', async () => {
           const newCfg = {
             apiKey: dialog.querySelector('#apiKey').value.trim(),
             allowedExtensions: dialog.querySelector('#extensions').value.split(',').map(e => e.trim()).filter(Boolean),
@@ -564,7 +583,7 @@
             debugMode: dialog.querySelector('#debugMode').checked
           };
           try {
-            ConfigManager.saveConfig(newCfg);
+            await ConfigManager.saveConfig(newCfg);
             if (dialog.parentNode) document.body.removeChild(dialog);
             if (dialog._escHandler) document.removeEventListener('keydown', dialog._escHandler);
             UIManager.showToast('Configuration saved successfully!', 'success');

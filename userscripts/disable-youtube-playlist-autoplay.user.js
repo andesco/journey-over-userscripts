@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          YouTube - Disable playlist autoplay
-// @version       1.0.1
+// @version       1.0.2
 // @description   Disables Youtube playlist autoplay
 // @author        Journey Over
 // @license       MIT
@@ -12,11 +12,14 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/disable-youtube-playlist-autoplay.user.js
 // ==/UserScript==
 
-(new MutationObserver(disableAutoplay)).observe(document.querySelector('ytd-app'), {childList: true, subtree: false});
+(new MutationObserver(disableAutoplay)).observe(document.querySelector('ytd-app'), {
+  childList: true,
+  subtree: false
+});
 disableAutoplay();
 
 function disableAutoplay() {
-  if(document.querySelector('yt-playlist-manager')) {
+  if (document.querySelector('yt-playlist-manager')) {
     document.querySelector('yt-playlist-manager').canAutoAdvance_ = false;
   }
 }

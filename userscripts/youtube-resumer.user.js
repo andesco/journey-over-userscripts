@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name          YouTube - Resumer
-// @version       1.2.1
+// @version       1.2.2
 // @description   Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage.
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.youtube.com/*
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
 // @grant         GM.setValue
 // @grant         GM.getValue
 // @grant         GM.deleteValue
@@ -38,7 +39,7 @@ function videoId(url = document.URL) {
 
 function save(video, id) {
   if (video.currentTime >= 2) { // Ensure it only saves after 2 seconds
-    GM.setValue(id, {
+    GMC.setValue(id, {
       "LastWatched": new Date().getTime(),
       "StoppedAt": parseInt(video.currentTime),
     });
@@ -51,16 +52,16 @@ async function cleanOldValues() {
   const currentTime = new Date().getTime();
 
   try {
-    const videoIds = await GM.listValues(); // Get all stored video IDs
+    const videoIds = await GMC.listValues(); // Get all stored video IDs
     for (const id of videoIds) {
-      const savedVideo = await GM.getValue(id); // Fetch saved video progress
+      const savedVideo = await GMC.getValue(id); // Fetch saved video progress
 
       if (savedVideo && savedVideo.LastWatched) {
         const lastWatched = savedVideo.LastWatched;
 
         // Check if the video progress was saved more than 90 days ago
         if (lastWatched < (currentTime - ninetyDaysInMs)) {
-          await GM.deleteValue(id); // Delete old saved progress
+          await GMC.deleteValue(id); // Delete old saved progress
           l(`Deleted old video progress for video ID: ${id}`);
         }
       }
@@ -78,7 +79,10 @@ function findVideo(onVideoFound) {
       observer.disconnect();
     }
   });
-  observer.observe(document, { childList: true, subtree: true });
+  observer.observe(document, {
+    childList: true,
+    subtree: true
+  });
 }
 
 let id = videoId();
@@ -105,7 +109,7 @@ function listen(video) {
 
 async function resume(video) {
   id = videoId();
-  const lastTime = await GM.getValue(id);
+  const lastTime = await GMC.getValue(id);
   if (lastTime && lastTime.StoppedAt) {
     l('Resuming video', id, 'from', lastTime.StoppedAt, 'seconds');
     video.currentTime = lastTime.StoppedAt;

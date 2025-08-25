@@ -1,20 +1,21 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       2.0.1
+// @version       2.0.2
 // @description   Makes it easier to copy data from ThePosterDB
 // @author        Journey Over
 // @license       MIT
 // @match         *://theposterdb.com/*
 // @require       https://code.jquery.com/jquery-3.5.1.min.js
-// @grant         GM_setClipboard
-// @grant         GM_addStyle
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @grant         GM.setClipboard
+// @grant         GM.addStyle
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=theposterdb.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
 // @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/theposterdb-easy-links.user.js
 // ==/UserScript==
 
-(() => {
+(function() {
   'use strict';
 
   // Constants and Configuration
@@ -200,7 +201,7 @@
     }
 
     setupStyles() {
-      GM_addStyle(STYLES);
+      GMC.addStyle(STYLES);
     }
 
     createButton(text, className, clickHandler) {
@@ -216,12 +217,12 @@
       container.className = 'tpdb-button-container';
 
       const linkButton = this.createButton('Copy Link', 'tpdb-button-link', () => {
-        GM_setClipboard(Utils.createUrl(posterId));
+        GMC.setClipboard(Utils.createUrl(posterId));
         NotificationManager.show(CONFIG.notifications.messages.link);
       });
 
       const idButton = this.createButton('Copy ID', 'tpdb-button-id', () => {
-        GM_setClipboard(posterId);
+        GMC.setClipboard(posterId);
         NotificationManager.show(CONFIG.notifications.messages.id);
       });
 
@@ -285,7 +286,7 @@
       button.textContent = 'Copy Metadata';
       button.addEventListener('click', () => {
         const metadata = `metadata:\n\n${posters.map(p => p.toMetadata()).join('\n\n')}`;
-        GM_setClipboard(metadata);
+        GMC.setClipboard(metadata);
         NotificationManager.show(CONFIG.notifications.messages.metadata);
       });
 

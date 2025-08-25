@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          Ironwood RPG Scripts
-// @version       1.4.0
+// @version       1.4.1
 // @description   Calculate time remaining for active skill exp based on current exp and action stats, and display it on the skill page in Ironwood RPG
 // @author        Journey Over
 // @license       MIT
@@ -19,22 +19,42 @@
  * @returns {string}
  */
 const convertSecondsToTimestamp = (seconds) => {
-  const units = [
-    { label: 'Y', value: 3600 * 24 * 365 }, // Years
-    { label: 'Mo', value: 3600 * 24 * 30 }, // Months
-    { label: 'D', value: 3600 * 24 },       // Days
-    { label: 'H', value: 3600 },            // Hours
-    { label: 'M', value: 60 },              // Minutes
-    { label: 'S', value: 1 }                // Seconds
+  const units = [{
+      label: 'Y',
+      value: 3600 * 24 * 365
+    }, // Years
+    {
+      label: 'Mo',
+      value: 3600 * 24 * 30
+    }, // Months
+    {
+      label: 'D',
+      value: 3600 * 24
+    }, // Days
+    {
+      label: 'H',
+      value: 3600
+    }, // Hours
+    {
+      label: 'M',
+      value: 60
+    }, // Minutes
+    {
+      label: 'S',
+      value: 1
+    } // Seconds
   ];
 
   return units
-    .map(({ label, value }) => {
+    .map(({
+      label,
+      value
+    }) => {
       const unit = Math.floor(seconds / value);
       seconds %= value;
-      return unit > 0 || ['H', 'M', 'S'].includes(label)
-        ? `${unit.toString().padStart(2, '0')}${label}`
-        : '';
+      return unit > 0 || ['H', 'M', 'S'].includes(label) ?
+        `${unit.toString().padStart(2, '0')}${label}` :
+        '';
     })
     .filter(Boolean)
     .join(' ') || '00S'; // Ensure at least seconds are shown
@@ -100,7 +120,19 @@ const parsePageData = () => {
       //console.warn("Loot timer elements not found. Defaulting to no loot data.");
     }
 
-    return { exp: { current, required }, actionStats: { exp, interval }, lootName, totalSeconds, hasLootData: timeElements.length > 0 };
+    return {
+      exp: {
+        current,
+        required
+      },
+      actionStats: {
+        exp,
+        interval
+      },
+      lootName,
+      totalSeconds,
+      hasLootData: timeElements.length > 0
+    };
   } catch (error) {
     if (!parsePageData.errorLogged) {
       console.error(`Could not parse page data: ${error.message}`);
@@ -110,12 +142,18 @@ const parsePageData = () => {
   }
 };
 
-const calculateActionsRequired = ({ exp, actionStats }) => {
+const calculateActionsRequired = ({
+  exp,
+  actionStats
+}) => {
   const expRemaining = exp.required - exp.current;
   return Math.ceil(expRemaining / actionStats.exp); // Round up to ensure the correct number of actions
 };
 
-const calculateTimeRemaining = ({ actionsRequired, interval }) => {
+const calculateTimeRemaining = ({
+  actionsRequired,
+  interval
+}) => {
   const seconds = actionsRequired * interval;
   return {
     seconds,
@@ -124,9 +162,24 @@ const calculateTimeRemaining = ({ actionsRequired, interval }) => {
 }
 
 const renderStats = () => {
-  const { exp, actionStats, lootName, totalSeconds, hasLootData } = parsePageData();
-  const actionsRequired = calculateActionsRequired({ exp, actionStats });
-  const { seconds, timestamp } = calculateTimeRemaining({ actionsRequired, interval: actionStats.interval });
+  const {
+    exp,
+    actionStats,
+    lootName,
+    totalSeconds,
+    hasLootData
+  } = parsePageData();
+  const actionsRequired = calculateActionsRequired({
+    exp,
+    actionStats
+  });
+  const {
+    seconds,
+    timestamp
+  } = calculateTimeRemaining({
+    actionsRequired,
+    interval: actionStats.interval
+  });
   const finishDate = calculateFinishDate(seconds);
 
   // Create or replace rows for skill-related data

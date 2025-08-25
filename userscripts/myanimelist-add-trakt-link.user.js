@@ -1,13 +1,14 @@
 // ==UserScript==
 // @name          MyAnimeList - Add Trakt link
-// @version       1.0.0
+// @version       1.0.1
 // @description   Add trakt link to MyAnimeList anime pages
 // @author        Journey Over
 // @license       MIT
 // @match         *://myanimelist.net/anime/*
-// @grant         GM_xmlhttpRequest
-// @grant         GM_setValue
-// @grant         GM_getValue
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @grant         GM.xmlHttpRequest
+// @grant         GM.setValue
+// @grant         GM.getValue
 // @run-at        document-end
 // @inject-into   content
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=myanimelist.net
@@ -16,7 +17,7 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/myanimelist-add-trakt-link.user.js
 // ==/UserScript==
 
-(function () {
+(async function() {
   'use strict';
 
   // Logging function
@@ -57,7 +58,7 @@
   }
 
   // Check cache first
-  const cachedData = GM_getValue(malId);
+  const cachedData = await GMC.getValue(malId);
   if (cachedData) {
     try {
       // Check if cache is still valid (24 hours)
@@ -75,10 +76,10 @@
 
   // Fetch from API if no valid cache
   log(`Fetching Trakt data for MAL ID ${malId}`, 'info');
-  GM_xmlhttpRequest({
+  GMC.xmlHttpRequest({
     method: 'GET',
     url: `https://animeapi.my.id/myanimelist/${malId}`,
-    onload: function (response) {
+    onload: function(response) {
       if (response.status === 200) {
         try {
           const data = JSON.parse(response.responseText);
@@ -87,8 +88,8 @@
             return;
           }
 
-          // Store in GM storage with timestamp
-          GM_setValue(malId, {
+          // Store in GMC storage with timestamp
+          GMC.setValue(malId, {
             data: data,
             timestamp: Date.now()
           });
@@ -102,7 +103,7 @@
         log(`API request failed with status ${response.status}`, 'error');
       }
     },
-    onerror: function (error) {
+    onerror: function(error) {
       log(`API request error: ${error.message}`, 'error');
     }
   });

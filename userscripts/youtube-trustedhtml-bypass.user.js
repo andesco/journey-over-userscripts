@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          YouTube - TrustedHTML Bypass
-// @version       1.0.0
+// @version       1.0.1
 // @description   Bypass errors with userscripts caused by YouTube's TrustedHTML policy
 // @author        Journey Over
 // @license       MIT
@@ -18,13 +18,13 @@
 
   // WORKAROUND: TypeError: Failed to set the 'innerHTML' property on 'Element': This document requires 'TrustedHTML' assignment.
   if (window.trustedTypes && trustedTypes.createPolicy) {
-      if (!trustedTypes.defaultPolicy) {
-          const passThroughFn = (x) => x;
-          trustedTypes.createPolicy('default', {
-              createHTML: passThroughFn,
-              createScriptURL: passThroughFn,
-              createScript: passThroughFn,
-          });
-      }
+    if (!trustedTypes.defaultPolicy) {
+      const passThroughFn = (x) => x;
+      trustedTypes.createPolicy('default', {
+        createHTML: passThroughFn,
+        createScriptURL: passThroughFn,
+        createScript: passThroughFn,
+      });
+    }
   }
 })();

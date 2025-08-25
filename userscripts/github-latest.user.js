@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          GitHub - Latest
-// @version       1.7.0
+// @version       1.7.1
 // @description   Always keep an eye on the latest activity of your favorite projects
 // @author        Journey Over
 // @license       MIT
@@ -12,7 +12,7 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/github-latest.user.js
 // ==/UserScript==
 
-(() => {
+(function() {
   const BUTTON_ID = 'latest-issues-button';
   const QUERY_STRING = 'q=sort%3Aupdated-desc';
 
@@ -108,7 +108,10 @@
     if (!nav) return;
 
     const observer = new MutationObserver(() => debounce(addLatestIssuesButton));
-    observer.observe(nav, { childList: true, subtree: true });
+    observer.observe(nav, {
+      childList: true,
+      subtree: true
+    });
   };
 
   const init = () => {

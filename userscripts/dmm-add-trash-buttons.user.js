@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.0.2
+// @version       2.1.0
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
@@ -88,11 +88,17 @@
   (function injectStyles() {
     const p = CONFIG.CSS_CLASS_PREFIX;
     const css = `
-      .${p}-btn { cursor:pointer; display:inline-block; margin-right:.5rem; padding:.18rem .5rem; font-size:12px; line-height:1; border-radius:.375rem; color:#fff; background:#ff6b6b; border:1px solid #ff4c4c; box-shadow:0 2px 6px rgba(0,0,0,.15); user-select:none; }
-      .${p}-btn:focus { outline:2px solid rgba(255,107,107,.35); outline-offset:2px; }
-      .${p}-menu { position:fixed; min-width:12rem; background:#1f2937; color:#fff; border-radius:.5rem; box-shadow:0 8px 24px rgba(0,0,0,.45); padding:.25rem 0; z-index:9999; display:none; }
-      .${p}-item { padding:.45rem .9rem; cursor:pointer; font-size:13px; white-space:nowrap; }
-      .${p}-item:hover { background:#374151; }
+      /* Button style aligned with site's small chips/buttons */
+      .${p}-btn{cursor:pointer;display:inline-flex;align-items:center;gap:.35rem;margin-right:.5rem;padding:.25rem .5rem;font-size:12px;line-height:1;border-radius:.375rem;color:#e6f0ff;background:rgba(15,23,42,.5);border:1px solid rgba(59,130,246,.55);box-shadow:none;user-select:none;white-space:nowrap;}
+      .${p}-btn:hover{background:rgba(59,130,246,.08);}
+      .${p}-btn:focus{outline:2px solid rgba(59,130,246,.18);outline-offset:2px;}
+      .${p}-chev{width:12px;height:12px;color:rgba(226,240,255,.95);margin-left:.15rem;display:inline-block;transition:transform 160ms ease;transform-origin:center;}
+      .${p}-btn[aria-expanded="true"] .${p}-chev{transform:rotate(180deg);}
+      .${p}-menu{position:absolute;min-width:10rem;background:#111827;color:#fff;border:1px solid rgba(148,163,184,.06);border-radius:.375rem;box-shadow:0 6px 18px rgba(2,6,23,.6);padding:.25rem 0;z-index:9999;display:none;}
+      .${p}-menu::before{content:"";position:absolute;top:-6px;left:12px;width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-bottom:6px solid #111827;}
+      .${p}-item{padding:.45rem .75rem;cursor:pointer;font-size:13px;white-space:nowrap;border-bottom:1px solid rgba(255,255,255,.03);}
+      .${p}-item:last-child{border-bottom:none;}
+      .${p}-item:hover{background:#1f2937;}
     `;
     const style = document.createElement('style');
     style.textContent = css;
@@ -110,6 +116,7 @@
       this.openMenu = null;
       this.documentClickHandler = this.onDocumentClick.bind(this);
       this.resizeHandler = this.onWindowResize.bind(this);
+      this.keydownHandler = this.onDocumentKeydown.bind(this);
     }
 
     cleanup() {
@@ -126,6 +133,7 @@
       this.container = null;
       this.openMenu = null;
       document.removeEventListener('click', this.documentClickHandler, true);
+      document.removeEventListener('keydown', this.keydownHandler);
       window.removeEventListener('resize', this.resizeHandler);
     }
 
@@ -154,14 +162,33 @@
 
       // global handlers for closing
       document.addEventListener('click', this.documentClickHandler, true);
+      document.addEventListener('keydown', this.keydownHandler);
       window.addEventListener('resize', this.resizeHandler);
+    }
+
+    onDocumentKeydown(e) {
+      if (!this.openMenu) return;
+      if (e.key === 'Escape' || e.key === 'Esc') {
+        e.preventDefault();
+        this.closeOpenMenu();
+      }
     }
 
     _createButton(name) {
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `${CONFIG.CSS_CLASS_PREFIX}-btn`;
-      btn.textContent = name;
+      // label text node for accessibility
+      const label = document.createTextNode(name);
+      btn.appendChild(label);
+      // append small chevron svg for dropdown affordance
+      const svgNs = 'http://www.w3.org/2000/svg';
+      const chev = document.createElementNS(svgNs, 'svg');
+      chev.setAttribute('viewBox', '0 0 20 20');
+      chev.setAttribute('aria-hidden', 'true');
+      chev.setAttribute('class', `${CONFIG.CSS_CLASS_PREFIX}-chev`);
+      chev.innerHTML = '<path d="M6 8l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round" stroke-linejoin="round" />';
+      btn.appendChild(chev);
       btn.setAttribute('aria-haspopup', 'true');
       btn.setAttribute('aria-expanded', 'false');
       btn.tabIndex = 0;

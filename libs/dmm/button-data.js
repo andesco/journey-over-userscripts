@@ -5,7 +5,7 @@
 // @name         @journeyover/dmm-add-trash-buttons
 // @description  Adds trash buttons to DMM
 // @license      MIT
-// @version      1.0.3
+// @version      1.0.4
 // @homepageURL  https://github.com/StylusThemes/Userscripts
 // ==/UserScript==
 
@@ -241,10 +241,6 @@
         {
           name: "Journey's Extra",
           value: "\\b(QxR|UTR|Joy|Silence|Vyndros|ReVyndros|Ghost|Tigole|D3g|TAoE|PSA|BeiTai|userHEVC)\\b"
-        },
-        {
-          name: "x265/HEVC",
-          value: "[xh][\\s._-]?265|\\bHEVC(\\b|\\d)"
         }
       ],
     },

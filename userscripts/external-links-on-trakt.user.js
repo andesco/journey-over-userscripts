@@ -7,6 +7,7 @@
 // @match         *://trakt.tv/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/wikidata/index.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@242f9a1408e4bb2271189a2b2d1e69ffb031fa51/libs/utils/utils.js
 // @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue
@@ -26,6 +27,8 @@
 
 (function() {
   'use strict';
+
+  const logger = Logger('External links on Trakt', { debug: false });
 
   // ==============================
   //  Constants and Configuration
@@ -121,8 +124,6 @@
 
   // Default configuration values
   const DEFAULT_CONFIG = Object.fromEntries([
-    ['logging', false],
-    ['debugging', false],
     ...CONSTANTS.METADATA_SITES.map(site => [site.name, true]),
     ...CONSTANTS.STREAMING_SITES.map(site => [site.name, true])
   ]);
@@ -136,39 +137,12 @@
       this.config = {
         ...DEFAULT_CONFIG
       };
-      this.wikidata = null;      // Wikidata API instance
-      this.mediaInfo = null;     // Current media item metadata
-      this.linkSettings = [      // All supported link settings
+      this.wikidata = null; // Wikidata API instance
+      this.mediaInfo = null; // Current media item metadata
+      this.linkSettings = [ // All supported link settings
         ...CONSTANTS.METADATA_SITES,
         ...CONSTANTS.STREAMING_SITES
       ];
-    }
-
-    // ======================
-    //  Logging Methods
-    // ======================
-    info(message, ...args) {
-      if (this.config.logging) {
-        console.info(`${CONSTANTS.SCRIPT_NAME}: INFO: ${message}`, ...args);
-      }
-    }
-
-    warn(message, ...args) {
-      if (this.config.logging) {
-        console.warn(`${CONSTANTS.SCRIPT_NAME}: WARN: ${message}`, ...args);
-      }
-    }
-
-    error(message, ...args) {
-      if (this.config.logging) {
-        console.error(`${CONSTANTS.SCRIPT_NAME}: ERROR: ${message}`, ...args);
-      }
-    }
-
-    debug(message, ...args) {
-      if (this.config.debugging) {
-        console.debug(`${CONSTANTS.SCRIPT_NAME}: DEBUG: ${message}`, ...args);
-      }
     }
 
     // ======================
@@ -178,27 +152,7 @@
       // Main initialization sequence
       await this.loadConfig();
       this.initializeWikidata();
-      this.logInitialization();
       this.setupEventListeners();
-    }
-
-    logInitialization() {
-      const {
-        version,
-        author
-      } = GM.info.script;
-      const headerStyle = 'color:red;font-weight:bold;font-size:18px;';
-      const versionText = version ? `v${version} ` : '';
-
-      console.log(
-        `%c${CONSTANTS.SCRIPT_NAME}\n%c${versionText}by ${author} is running!`,
-        headerStyle,
-        ''
-      );
-
-      this.info('Script initialized');
-      this.debug('Debugging mode enabled');
-      this.debug('Current configuration:', this.config);
     }
 
     async loadConfig() {
@@ -213,9 +167,8 @@
     }
 
     initializeWikidata() {
-      // Initialize Wikidata API with debugging option
       this.wikidata = new Wikidata({
-        debug: this.config.debugging
+        debug: logger.debugEnabled
       });
     }
 
@@ -289,7 +242,7 @@
         }
         this.sortLinks();
       } catch (error) {
-        this.error(`Failed handling external links: ${error.message}`);
+        logger.error(`Failed handling external links: ${error.message}`);
       }
     }
 
@@ -326,7 +279,7 @@
         $('.sidebar .external li').append(
           `<a target="_blank" id="${id}" href="${url}" data-original-title="" title="">${name}</a>`
         );
-        this.debug(`Added ${name} link: ${url}`);
+        logger.debug(`Added link: ${name} -> ${url}`);
       }
     }
 
@@ -338,7 +291,6 @@
       const cache = await GMC.getValue(this.mediaInfo.imdbId);
 
       if (this.isCacheValid(cache)) {
-        this.debug('Using cached Wikidata data');
         this.addWikidataLinks(cache.links);
         return;
       }
@@ -352,9 +304,9 @@
           time: Date.now()
         });
         this.addWikidataLinks(data.links);
-        this.debug('New Wikidata data fetched:', data.item);
+        logger.debug(`Fetched new Wikidata links: ${JSON.stringify(data.links)}`);
       } catch (error) {
-        this.error(`Failed fetching Wikidata links: ${error.message}`);
+        logger.error(`Failed fetching Wikidata links: ${error.message}`);
       }
     }
 
@@ -497,7 +449,7 @@
     // ======================
     isCacheValid(cache) {
       return cache &&
-        !this.config.debugging &&
+        !logger.debugEnabled &&
         (Date.now() - cache.time) < CONSTANTS.CACHE_DURATION;
     }
 
@@ -566,29 +518,6 @@
             </div>
 
             <div class="settings-sections">
-              <div class="settings-section">
-                <h3><i class="fas fa-cog"></i> General Settings</h3>
-                <div class="setting-item">
-                  <div class="setting-info">
-                    <label for="logging">Enable Logging</label>
-                    <div class="description">Show basic logs (info, warnings, errors) in console</div>
-                  </div>
-                  <label class="switch">
-                    <input type="checkbox" id="logging" ${this.config.logging ? 'checked' : ''}>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-                <div class="setting-item">
-                  <div class="setting-info">
-                    <label for="debugging">Enable Debugging</label>
-                    <div class="description">Show detailed debug information in console</div>
-                  </div>
-                  <label class="switch">
-                    <input type="checkbox" id="debugging" ${this.config.debugging ? 'checked' : ''}>
-                    <span class="slider"></span>
-                  </label>
-                </div>
-              </div>
 
               ${generateSection('Metadata Sites', CONSTANTS.METADATA_SITES)}
               ${generateSection('Streaming Sites', CONSTANTS.STREAMING_SITES)}
@@ -612,9 +541,6 @@
       $('.close-button').click(() => $(`#${CONSTANTS.SCRIPT_ID}-config`).remove());
 
       $('#save-config').click(async () => {
-        this.config.logging = $('#logging').is(':checked');
-        this.config.debugging = $('#debugging').is(':checked');
-
         [...CONSTANTS.METADATA_SITES, ...CONSTANTS.STREAMING_SITES].forEach(site => {
           const checkboxId = site.name.toLowerCase().replace(/\s+/g, '_');
           this.config[site.name] = $(`#${checkboxId}`).is(':checked');
@@ -631,7 +557,6 @@
           if (value === CONSTANTS.CONFIG_KEY) continue;
           await GMC.deleteValue(value);
         }
-        this.info('Cache cleared (excluding config)');
         $(`#${CONSTANTS.SCRIPT_ID}-config`).remove();
         window.location.reload();
       });

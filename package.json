@@ -1,12 +1,13 @@
 
 {
-	"name": "userscripts",
-	"version": "1.0.0",
-	"type": "module",
-	"scripts": {
-		"build": "bun ./scripts/build.js"
-	},
-	"dependencies": {
-		"terser": "^5.20.0"
-	}
+  "name": "userscripts",
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "build": "bun ./scripts/build.js"
+  },
+  "dependencies": {
+    "terser": "^5.20.0",
+    "js-beautify": "^1.14.13"
+  }
 }

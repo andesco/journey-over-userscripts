@@ -64,8 +64,8 @@
       if (!value) return null;
       try {
         return typeof value === 'string' ? JSON.parse(value) : value;
-      } catch (e) {
-        console.warn('Config parse failed, resetting to defaults.', e);
+      } catch (err) {
+        console.warn('Config parse failed, resetting to defaults.', err);
         return null;
       }
     }
@@ -142,9 +142,9 @@
             try {
               const parsed = JSON.parse(resp.responseText.trim());
               return resolve(parsed);
-            } catch (e) {
-              this.#log('parse error', e);
-              return reject(new RealDebridError(`Failed to parse API response: ${e.message}`, resp.status));
+            } catch (err) {
+              this.#log('parse error', err);
+              return reject(new RealDebridError(`Failed to parse API response: ${err.message}`, resp.status));
             }
           },
           onerror: (err) => {
@@ -196,8 +196,8 @@
       try {
         this.#existing = await this.#api.getExistingTorrents();
         if (this.#config.debugMode) console.log('[MagnetLinkProcessor] existing torrents', this.#existing);
-      } catch (e) {
-        console.warn('Failed to load existing torrents', e);
+      } catch (err) {
+        console.warn('Failed to load existing torrents', err);
         this.#existing = [];
       }
     }
@@ -217,7 +217,7 @@
         const fallback = magnetLink.match(/xt=urn:btih:([A-Za-z0-9]+)/i);
         if (fallback) return fallback[1].toUpperCase();
         return null;
-      } catch (e) {
+      } catch (err) {
         const m = magnetLink.match(/xt=urn:btih:([A-Za-z0-9]+)/i);
         return m ? m[1].toUpperCase() : null;
       }
@@ -246,7 +246,7 @@
             try {
               const re = new RegExp(kw.slice(1, -1), 'i');
               if (re.test(path) || re.test(name)) return false;
-            } catch (e) {
+            } catch (err) {
               // invalid regex: ignore it
             }
           }
@@ -406,7 +406,7 @@
             if (!this.keyToIcon.has(key)) this.keyToIcon.set(key, next);
           }
         });
-      } catch (e) {
+      } catch (err) {
         // ignore DOM inspection errors
       }
     }
@@ -535,8 +535,8 @@
 
     try {
       _realDebridService = new RealDebridService(cfg.apiKey, cfg);
-    } catch (e) {
-      console.warn('RealDebridService not created:', e);
+    } catch (err) {
+      console.warn('RealDebridService not created:', err);
       _apiAvailable = false;
       return Promise.resolve(false);
     }

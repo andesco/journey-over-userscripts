@@ -6,6 +6,7 @@
 // @license       MIT
 // @match         *://*.youtube.com/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@242f9a1408e4bb2271189a2b2d1e69ffb031fa51/libs/utils/utils.js
 // @grant         GM.setValue
 // @grant         GM.getValue
 // @grant         GM.deleteValue
@@ -16,82 +17,73 @@
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/youtube-resumer.user.js
 // ==/UserScript==
 
-function l(...args) {
-  console.log('[Resumer]', ...args);
-}
+(function() {
+  'use strict';
 
-function videoId(url = document.URL) {
-  const urlObj = new URL(url);
-  // Handle regular YouTube watch URLs (youtube.com/watch?v=ID)
-  if (urlObj.pathname === '/watch') {
-    return urlObj.searchParams.get('v');
+  const logger = Logger('YT - Resumer', { debug: false });
+
+  // Get video ID from URL
+  function videoId(url = document.URL) {
+    const urlObj = new URL(url);
+    if (urlObj.pathname === '/watch') { // Handle regular YouTube watch URLs (youtube.com/watch?v=ID)
+      return urlObj.searchParams.get('v');
+    } else if (urlObj.pathname.startsWith('/embed/')) { // Handle embed URLs (youtube.com/embed/ID)
+      return urlObj.pathname.split('/')[2];
+    } else if (urlObj.hostname === 'youtu.be') { // Handle youtu.be shortened URLs (youtu.be/ID)
+      return urlObj.pathname.slice(1);
+    }
+    return null;
   }
-  // Handle embed URLs (youtube.com/embed/ID)
-  else if (urlObj.pathname.startsWith('/embed/')) {
-    return urlObj.pathname.split('/')[2];
+
+  // Save current progress
+  function save(video, id) {
+    if (!id) return;
+    if (video.currentTime >= 2) {
+      GMC.setValue(id, {
+        LastWatched: Date.now(),
+        StoppedAt: parseInt(video.currentTime),
+      });
+      logger.debug(`Saved video ${id} at ${video.currentTime} seconds`);
+    }
   }
-  // Handle youtu.be shortened URLs (youtu.be/ID)
-  else if (urlObj.hostname === 'youtu.be') {
-    return urlObj.pathname.slice(1);
-  }
-  return null;
-}
 
-function save(video, id) {
-  if (video.currentTime >= 2) { // Ensure it only saves after 2 seconds
-    GMC.setValue(id, {
-      "LastWatched": new Date().getTime(),
-      "StoppedAt": parseInt(video.currentTime),
-    });
-    //l(`Saved video ${id} at ${video.currentTime} seconds`);
-  }
-}
+  // Clean saved progress older than 90 days
+  async function cleanOldValues() {
+    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
+    const now = Date.now();
 
-async function cleanOldValues() {
-  const ninetyDaysInMs = 90 * 24 * 60 * 60 * 1000;
-  const currentTime = new Date().getTime();
-
-  try {
-    const videoIds = await GMC.listValues(); // Get all stored video IDs
-    for (const id of videoIds) {
-      const savedVideo = await GMC.getValue(id); // Fetch saved video progress
-
-      if (savedVideo && savedVideo.LastWatched) {
-        const lastWatched = savedVideo.LastWatched;
-
-        // Check if the video progress was saved more than 90 days ago
-        if (lastWatched < (currentTime - ninetyDaysInMs)) {
-          await GMC.deleteValue(id); // Delete old saved progress
-          l(`Deleted old video progress for video ID: ${id}`);
+    try {
+      const ids = await GMC.listValues();
+      for (const id of ids) {
+        const saved = await GMC.getValue(id);
+        if (saved?.LastWatched && saved.LastWatched < now - ninetyDaysMs) {
+          await GMC.deleteValue(id);
+          logger.debug(`Deleted old progress for video ID: ${id}`);
         }
       }
+    } catch (err) {
+      logger.error('Error cleaning old values:', err);
     }
-  } catch (error) {
-    l('Error while cleaning old values:', error);
   }
-}
 
-function findVideo(onVideoFound) {
-  const observer = new MutationObserver((mutations, observer) => {
-    const video = document.querySelector('video.video-stream');
-    if (video) {
-      onVideoFound(video);
-      observer.disconnect();
-    }
-  });
-  observer.observe(document, {
-    childList: true,
-    subtree: true
-  });
-}
+  // Find video element when it becomes available
+  function findVideo(onVideoFound) {
+    const observer = new MutationObserver(() => {
+      const video = document.querySelector('video.video-stream');
+      if (video) {
+        onVideoFound(video);
+        observer.disconnect();
+      }
+    });
+    observer.observe(document, { childList: true, subtree: true });
+  }
 
-let id = videoId();
+  // Listen for timeupdate events and save progress
+  function listen(video) {
+    let lastSrc;
 
-function listen(video) {
-  let lastSrc;
-
-  function handleTimeUpdate() {
-    if (video.src && !isNaN(video.duration)) {
+    function handleTimeUpdate() {
+      if (!video || isNaN(video.duration)) return;
       if (id) {
         save(video, id);
         lastSrc = video.src;
@@ -99,59 +91,58 @@ function listen(video) {
         save(video, lastId);
       }
     }
+    video.addEventListener('timeupdate', handleTimeUpdate);
+    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
   }
 
-  video.addEventListener('timeupdate', handleTimeUpdate);
-  return () => {
-    video.removeEventListener('timeupdate', handleTimeUpdate);
-  };
-}
-
-async function resume(video) {
-  id = videoId();
-  const lastTime = await GMC.getValue(id);
-  if (lastTime && lastTime.StoppedAt) {
-    l('Resuming video', id, 'from', lastTime.StoppedAt, 'seconds');
-    video.currentTime = lastTime.StoppedAt;
-  } else {
-    l('No saved position, starting fresh');
+  // Resume video from last saved position
+  async function resume(video) {
+    id = videoId();
+    if (!id) return;
+    const saved = await GMC.getValue(id);
+    if (saved?.StoppedAt) {
+      logger.debug('Resuming video', id, 'from', saved.StoppedAt, 'seconds');
+      video.currentTime = saved.StoppedAt;
+    } else {
+      logger.debug('No saved position, starting fresh');
+    }
   }
-}
 
-function cleanUrl() {
-  const url = new URL(document.URL);
-  url.searchParams.delete('t'); // Clean any timestamps in the URL to prevent conflicts
-  window.history.replaceState(null, null, url);
-}
-
-let lastId;
-
-// Handle both regular YouTube navigation and embedded videos
-function handleNavigation() {
-  const currentId = videoId();
-  if (currentId && lastId !== currentId) {
-    lastId = currentId;
-    cleanUrl(); // Clean up the URL
-    let removeListeners;
-    findVideo(video => {
-      resume(video);
-      if (removeListeners) removeListeners();
-      removeListeners = listen(video);
-    });
+  // Remove timestamp from URL
+  function cleanUrl() {
+    const url = new URL(document.URL);
+    url.searchParams.delete('t');
+    window.history.replaceState(null, null, url);
   }
-}
 
-// Listen for navigation events on regular YouTube
-document.addEventListener("yt-navigate-finish", handleNavigation);
+  // Handle navigation events and embedded video updates
+  let id;
+  let lastId;
 
-// For embedded videos, check periodically as they might not trigger navigation events
-if (window.location.pathname.startsWith('/embed/')) {
-  // Initial check
-  handleNavigation();
+  function handleNavigation() {
+    const currentId = videoId();
+    if (currentId && lastId !== currentId) {
+      lastId = currentId;
+      cleanUrl();
+      let removeListeners;
+      findVideo(video => {
+        resume(video);
+        if (removeListeners) removeListeners();
+        removeListeners = listen(video);
+      });
+    }
+  }
 
-  // Periodic checks in case the embedded video changes without navigation
-  setInterval(handleNavigation, 1000);
-}
+  // Listen for regular YouTube navigation
+  document.addEventListener('yt-navigate-finish', handleNavigation);
 
-// Call the cleanOldValues function when the script is initialized
-cleanOldValues();
+  // Embedded videos may not trigger navigation events
+  if (window.location.pathname.startsWith('/embed/')) {
+    handleNavigation();
+    setInterval(handleNavigation, 1000);
+  }
+
+  // Initialize cleanup
+  cleanOldValues();
+
+})();

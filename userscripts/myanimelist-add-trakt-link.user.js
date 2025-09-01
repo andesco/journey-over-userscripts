@@ -69,8 +69,8 @@
       } else {
         log(`Cache expired for MAL ID ${malId}`, 'debug');
       }
-    } catch (e) {
-      log(`Error parsing cached data: ${e.message}`, 'error');
+    } catch (err) {
+      log(`Error parsing cached data: ${err.message}`, 'error');
     }
   }
 
@@ -96,8 +96,8 @@
 
           log(`Successfully retrieved Trakt data for MAL ID ${malId}`, 'info');
           createTraktLink(data);
-        } catch (e) {
-          log(`Error parsing API response: ${e.message}`, 'error');
+        } catch (err) {
+          log(`Error parsing API response: ${err.message}`, 'error');
         }
       } else {
         log(`API request failed with status ${response.status}`, 'error');

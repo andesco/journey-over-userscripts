@@ -5,7 +5,7 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://theposterdb.com/*
-// @require       https://code.jquery.com/jquery-3.5.1.min.js
+// @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
 // @grant         GM.setClipboard
 // @grant         GM.addStyle

@@ -5,7 +5,7 @@
 // @name         @journeyover/utils
 // @description  Utility helpers for my userscripts
 // @license      MIT
-// @version      1.0.0
+// @version      1.0.1
 // @homepageURL  https://github.com/StylusThemes/Userscripts
 // ==/UserScript==
 
@@ -46,39 +46,76 @@ function debounce(fn, wait) {
 }
 
 /**
- * Lightweight logger factory for userscripts.
+ * Styled logger factory for userscripts.
  *
- * Returns a logging function that prefixes every message with `prefix` and
- * delegates to the corresponding `console` method. The returned function is
- * callable as `log(message, ...args)` and also exposes helper methods:
- * - log.error(message, ...args)
- * - log.warn(message, ...args)
- * - log.debug(message, ...args)
+ * Creates a logging function that prefixes every message with `[prefix]`
+ * and an icon indicating the log level. The returned function delegates
+ * to the corresponding `console` method for proper formatting.
  *
- * All helpers forward additional arguments to the console API so objects and
- * Error instances are preserved.
+ * The returned function is callable as:
+ *   log(message, ...args)
  *
- * @param {string} prefix - String to prepend to every log entry (example: '[MyScript]').
- * @returns {Function} A logging function with `.error`, `.warn`, and `.debug` methods.
+ * It also exposes helper methods:
+ *   - log.error(message, ...args)  ❌ red
+ *   - log.warn(message, ...args)   ⚠️ orange
+ *   - log.debug(message, ...args)  🔍 blue
+ *   - log(message, ...args)        ✅ green
+ *
+ * Additional arguments are forwarded directly to the console API so
+ * objects, arrays, and Error instances are preserved.
+ *
+ * @param {string} prefix - Label to display in brackets before each message
+ *                          (e.g. 'YouTube - Resumer' → '[YouTube - Resumer]').
+ * @returns {Function} A logging function with `.error`, `.warn`, and `.debug` helpers.
  *
  * @example
- * const log = Logger('[My-Script]');
- * log('initialized', { version: 1 });
- * log.error('request failed', err);
+ * const log = Logger('YouTube - Resumer');
+ * log('Initialized', { version: '1.2.2' });
+ * log.warn('Unstable connection');
+ * log.error('Failed to resume playback', new Error('Timeout'));
+ * log.debug('Progress data', { time: 123 });
  */
 function Logger(prefix) {
-  function log(message, ...rest) {
-    console.log(prefix + ' ' + message, ...rest);
+  const baseStyle = 'font-weight: bold; padding:2px 6px; border-radius: 4px;';
+  const formattedPrefix = `[${prefix}]`;
+
+  const styles = {
+    log:    'background: #4caf50; color: white;' + baseStyle, // green
+    error:  'background: #f44336; color: white;' + baseStyle, // red
+    warn:   'background: #ff9800; color: black;' + baseStyle, // orange
+    debug:  'background: #2196f3; color: white;' + baseStyle, // blue
+  };
+
+  const icons = {
+    log:   '✅',
+    error: '❌',
+    warn:  '⚠️',
+    debug: '🔍',
+  };
+
+  function format(type, message, ...rest) {
+    console[type](
+      `%c${icons[type]} ${formattedPrefix}%c ${message}`,
+      styles[type],
+      '',
+      ...rest
+    );
   }
+
+  function log(message, ...rest) {
+    format('log', message, ...rest);
+  }
+
   log.error = function(message, ...rest) {
-    console.error(prefix + ' ' + message, ...rest);
+    format('error', message, ...rest);
   };
   log.warn = function(message, ...rest) {
-    console.warn(prefix + ' ' + message, ...rest);
+    format('warn', message, ...rest);
   };
   log.debug = function(message, ...rest) {
-    console.debug(prefix + ' ' + message, ...rest);
+    format('debug', message, ...rest);
   };
+
   return log;
 }
 

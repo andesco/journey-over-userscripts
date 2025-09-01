@@ -188,9 +188,10 @@
       .${p}-item:hover{background:#1f2937;}
       .${p}-quality-section{display:flex;align-items:center;gap:.75rem;margin-left:.75rem;padding-left:.75rem;border-left:1px solid rgba(148,163,184,.15);}
       .${p}-quality-grid{display:flex;flex-wrap:wrap;gap:.6rem;}
-      .${p}-quality-item{display:flex;align-items:center;font-size:12px;}
-      .${p}-quality-checkbox{width:14px;height:14px;margin-right:.4rem;border-radius:3px;border:1px solid rgba(148,163,184,.4);background:transparent;cursor:pointer;}
-      .${p}-quality-checkbox:checked{background:#3b82f6;border-color:#3b82f6;}
+      .${p}-quality-item{display:inline-flex;align-items:center;font-size:12px;}
+      .${p}-quality-button{padding:.25rem .5rem;border-radius:.375rem;border:1px solid rgba(148,163,184,.15);background:transparent;color:#e6f0ff;cursor:pointer;font-size:12px;line-height:1}
+      .${p}-quality-button.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+      .${p}-quality-button:focus{outline:1px solid rgba(59,130,246,.5);}
       .${p}-quality-label{color:#e6f0ff;cursor:pointer;white-space:nowrap;}
       .${p}-logic-selector{margin-right:.75rem;padding-right:.75rem;border-right:1px solid rgba(148,163,184,.15);}
       .${p}-logic-select{background:#1f2937;color:#e6f0ff;border:1px solid rgba(148,163,184,.4);border-radius:4px;padding:.2rem .4rem;font-size:11px;cursor:pointer;}
@@ -202,7 +203,7 @@
   })();
 
   /**
-   * Manages quality selection checkboxes and logic mode
+   * Manages quality selection buttons and logic mode
    * Persists user preferences and handles regex generation
    */
   class QualityManager {
@@ -210,7 +211,7 @@
       this.selectedOptions = [];
       this.useAndLogic = false;
       this.container = null;
-      this.checkboxes = new Map();
+      this.buttons = new Map();
       this.logicSelect = null;
     }
 
@@ -241,7 +242,7 @@
     }
 
     /**
-     * Creates the quality selection UI with checkboxes and logic selector
+     * Creates the quality selection UI with buttons and logic selector
      */
     createQualitySection() {
       if (!this.container) return;
@@ -268,7 +269,7 @@
       logicSelector.appendChild(logicSelect);
       this.logicSelect = logicSelect;
 
-      // Quality token checkboxes
+      // Quality token buttons
       const grid = document.createElement('div');
       grid.className = `${CONFIG.CSS_CLASS_PREFIX}-quality-grid`;
 
@@ -276,22 +277,17 @@
         const item = document.createElement('div');
         item.className = `${CONFIG.CSS_CLASS_PREFIX}-quality-item`;
 
-        const checkbox = document.createElement('input');
-        checkbox.type = 'checkbox';
-        checkbox.id = `${CONFIG.CSS_CLASS_PREFIX}-${token.key}`;
-        checkbox.className = `${CONFIG.CSS_CLASS_PREFIX}-quality-checkbox`;
-        checkbox.addEventListener('change', () => this.onCheckboxChange(token.key, checkbox.checked));
+        const btn = document.createElement('button');
+        btn.type = 'button';
+        btn.className = `${CONFIG.CSS_CLASS_PREFIX}-quality-button`;
+        btn.id = `${CONFIG.CSS_CLASS_PREFIX}-${token.key}`;
+        btn.textContent = token.name;
+        btn.addEventListener('click', () => this.onToggleOption(token.key, btn));
 
-        const label = document.createElement('label');
-        label.htmlFor = checkbox.id;
-        label.className = `${CONFIG.CSS_CLASS_PREFIX}-quality-label`;
-        label.textContent = token.name;
-
-        item.appendChild(checkbox);
-        item.appendChild(label);
+        item.appendChild(btn);
         grid.appendChild(item);
 
-        this.checkboxes.set(token.key, checkbox);
+        this.buttons.set(token.key, btn);
       });
 
       section.appendChild(logicSelector);
@@ -304,8 +300,8 @@
      */
     restoreStates() {
       this.selectedOptions.forEach((key) => {
-        const checkbox = this.checkboxes.get(key);
-        if (checkbox) checkbox.checked = true;
+        const btn = this.buttons.get(key);
+        if (btn) btn.classList.add(`${CONFIG.CSS_CLASS_PREFIX}-quality-button`), btn.classList.add('active');
       });
 
       if (this.logicSelect) {
@@ -325,12 +321,18 @@
       this.updateInputWithQualityOptions();
     }
 
-    onCheckboxChange(key, checked) {
-      if (checked) {
-        if (!this.selectedOptions.includes(key)) this.selectedOptions.push(key);
+    /**
+     * Toggle option handler for button UI
+     */
+    onToggleOption(key, btn) {
+      const isActive = btn.classList.contains('active');
+      if (isActive) {
+        btn.classList.remove('active');
+        const idx = this.selectedOptions.indexOf(key);
+        if (idx > -1) this.selectedOptions.splice(idx, 1);
       } else {
-        const index = this.selectedOptions.indexOf(key);
-        if (index > -1) this.selectedOptions.splice(index, 1);
+        btn.classList.add('active');
+        if (!this.selectedOptions.includes(key)) this.selectedOptions.push(key);
       }
 
       try {
@@ -393,7 +395,7 @@
     }
 
     cleanup() {
-      this.checkboxes.clear();
+      this.buttons.clear();
       const existing = this.container?.querySelector(`.${CONFIG.CSS_CLASS_PREFIX}-quality-section`);
       if (existing) existing.remove();
     }

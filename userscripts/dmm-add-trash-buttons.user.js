@@ -24,7 +24,6 @@
   const CONFIG = {
     CONTAINER_SELECTOR: '.mb-2',
     RELEVANT_PAGE_RX: /debridmediamanager\.com\/(movie|show)\/[^\/]+/,
-    MAX_RETRIES: 20,
     CSS_CLASS_PREFIX: 'dmm-tg',
     STORAGE_KEY: 'dmm-tg-quality-options',
     LOGIC_STORAGE_KEY: 'dmm-tg-logic-mode'
@@ -630,7 +629,6 @@
     constructor() {
       this.buttonManager = new ButtonManager();
       this.lastUrl = location.href;
-      this.retry = 0;
       this.pendingWait = false;
       this.debouncedCheck = debounce(this.checkPage.bind(this), 150);
 
@@ -668,7 +666,7 @@
 
     /**
      * Checks current page and initializes buttons if on relevant page
-     * Uses retry mechanism for SPA pages that load content asynchronously
+     * Uses waitForElement for SPA pages that load content asynchronously
      */
     async checkPage() {
       const url = location.href;
@@ -684,7 +682,6 @@
       const container = qs(CONFIG.CONTAINER_SELECTOR);
       if (container) {
         this.pendingWait = false;
-        this.retry = 0;
         await this.buttonManager.initialize(container);
         this.lastUrl = url;
         return;

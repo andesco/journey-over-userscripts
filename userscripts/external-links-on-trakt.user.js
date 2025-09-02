@@ -8,7 +8,6 @@
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/wikidata/index.min.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@242f9a1408e4bb2271189a2b2d1e69ffb031fa51/libs/utils/utils.js
-// @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue
 // @grant         GM.getValue
@@ -22,8 +21,6 @@
 // @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/external-links-on-trakt.user.js
 // @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/external-links-on-trakt.user.js
 // ==/UserScript==
-
-/* global $, NodeCreationObserver, Wikidata */
 
 (function() {
   'use strict';
@@ -175,13 +172,20 @@
     // ======================
     //  Event Handling
     // ======================
-    setupEventListeners() {
+    async setupEventListeners() {
       // Watch for external links container and body element creation
-      NodeCreationObserver.onCreation('.sidebar .external', () => this.handleExternalLinks());
-      NodeCreationObserver.onCreation('body', () => this.addSettingsMenu());
+      waitForElement('.sidebar .external')
+        .then(() => this.handleExternalLinks())
+        .catch(err => logger.error('waitForElement timeout', err));
+
+      waitForElement('body')
+        .then(() => this.addSettingsMenu())
+        .catch(err => logger.error('waitForElement timeout', err));
 
       // Watch for collection links in list descriptions on collection pages
-      NodeCreationObserver.onCreation('.text.readmore', () => this.handleCollectionLinks());
+      waitForElement('.text.readmore')
+        .then(() => this.handleCollectionLinks())
+        .catch(err => logger.error('waitForElement timeout', err));
     }
 
     // ======================

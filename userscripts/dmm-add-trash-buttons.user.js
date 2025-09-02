@@ -630,12 +630,11 @@
     constructor() {
       this.buttonManager = new ButtonManager();
       this.lastUrl = location.href;
-      this.mutationObserver = null;
       this.retry = 0;
+      this.pendingWait = false;
       this.debouncedCheck = debounce(this.checkPage.bind(this), 150);
 
       this.setupHistoryHooks();
-      this.setupMutationObserver();
       this.checkPage();
     }
 
@@ -668,23 +667,6 @@
     }
 
     /**
-     * Sets up mutation observer to detect DOM changes
-     * Triggers page checks when new elements are added
-     */
-    setupMutationObserver() {
-      if (this.mutationObserver) this.mutationObserver.disconnect();
-      this.mutationObserver = new MutationObserver((mutations) => {
-        for (const m of mutations) {
-          if (m.type === 'childList' && m.addedNodes.length > 0) {
-            this.debouncedCheck();
-            break;
-          }
-        }
-      });
-      this.mutationObserver.observe(document.body, { childList: true, subtree: true });
-    }
-
-    /**
      * Checks current page and initializes buttons if on relevant page
      * Uses retry mechanism for SPA pages that load content asynchronously
      */
@@ -698,21 +680,33 @@
         return;
       }
 
-      // Wait for container element to be available
+      // If the container is present, initialize immediately
       const container = qs(CONFIG.CONTAINER_SELECTOR);
-      if (!container) {
-        if (this.retry < CONFIG.MAX_RETRIES) {
-          this.retry++;
-          this.debouncedCheck();
-        } else {
-          this.retry = 0;
-        }
+      if (container) {
+        this.pendingWait = false;
+        this.retry = 0;
+        await this.buttonManager.initialize(container);
+        this.lastUrl = url;
         return;
       }
 
-      this.retry = 0;
-      await this.buttonManager.initialize(container);
-      this.lastUrl = url;
+      // If a wait is already pending, avoid creating another observer
+      if (this.pendingWait) return;
+
+      // Wait for the container using waitForElement
+      this.pendingWait = true;
+      waitForElement(CONFIG.CONTAINER_SELECTOR)
+        .then(async (el) => {
+          this.pendingWait = false;
+          // Ensure we are still on a relevant page
+          if (!CONFIG.RELEVANT_PAGE_RX.test(location.href)) return;
+          await this.buttonManager.initialize(el);
+          this.lastUrl = location.href;
+        })
+        .catch(err => {
+          this.pendingWait = false;
+          logger.error('waitForElement timeout', err);
+        });
     }
   }
 
@@ -727,7 +721,10 @@
   ready(() => {
     try {
       if (!BUTTON_DATA.length) return;
-      new PageManager();
+      // Wait for the primary container to exist before booting the PageManager
+      waitForElement(CONFIG.CONTAINER_SELECTOR)
+        .then(() => new PageManager())
+        .catch(err => logger.error('waitForElement timeout', err));
     } catch (err) {
       logger.error('dmm-tg boot error', err);
     }

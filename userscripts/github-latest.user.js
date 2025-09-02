@@ -5,7 +5,7 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://github.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@488ba5a953514b122dfcc1f07a92223054637a6f/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
 // @grant         none
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=github.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts

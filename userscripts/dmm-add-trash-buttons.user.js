@@ -7,7 +7,7 @@
 // @match         *://debridmediamanager.com/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@f7bfd16f830e9bfdd6c261e5c2b414fe90cf7455/libs/dmm/button-data.min.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@242f9a1408e4bb2271189a2b2d1e69ffb031fa51/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
 // @grant         GM.getValue
 // @grant         GM.setValue
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com

@@ -7,7 +7,7 @@
 // @match         *://trakt.tv/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/wikidata/index.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@242f9a1408e4bb2271189a2b2d1e69ffb031fa51/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue
 // @grant         GM.getValue

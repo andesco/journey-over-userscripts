@@ -1,11 +1,10 @@
 // ==UserScript==
-// @author       Journey Over
 // @exclude      *
 // ==UserLibrary==
 // @name         @journeyover/gmcompat
-// @description  GM Compatibility Layer
+// @description  GM Compatibility Layer with Legacy Aliases
 // @license      MIT
-// @version      1.0.1
+// @version      2.0.0
 // @homepageURL  https://github.com/StylusThemes/Userscripts
 // ==/UserLibrary==
 // @grant        GM.getValue
@@ -13,50 +12,44 @@
 // @grant        GM.deleteValue
 // @grant        GM.listValues
 // @grant        GM.xmlHttpRequest
-// @grant        GM.notification
 // @grant        GM.registerMenuCommand
 // @grant        GM.addStyle
-// @grant        GM.openInTab
-// @grant        GM.download
-// @grant        GM.getResourceText
-// @grant        GM.getResourceURL
 // @grant        GM.setClipboard
-// @grant        GM.getTab
-// @grant        GM.saveAs
+// @grant        GM.addValueChangeListener
+// @grant        GM.removeValueChangeListener
 // ==/UserScript==
 
-const GMC = (function() {
+/* global GM, GM_getValue, GM_setValue, GM_deleteValue, GM_listValues,
+   GM_xmlhttpRequest, GM_registerMenuCommand, GM_addStyle, GM_setClipboard,
+   GM_addValueChangeListener, GM_removeValueChangeListener */
+
+const GMC = (function(global) {
+  'use strict';
+
   const hasGM = typeof GM !== 'undefined' && GM !== null;
-  const hasLegacy = typeof GM_getValue !== 'undefined' || typeof GM_setValue !== 'undefined';
-  const LS_PREFIX = '__gmcompat__::';
+  const hasLegacy =
+    typeof GM_getValue !== 'undefined' ||
+    typeof GM_setValue !== 'undefined';
 
-  // --- Helpers ---
-  const isFunction = (v) => typeof v === 'function';
-  const tryCall = (fn, ...args) => {
-    try {
-      return fn(...args);
-    } catch (e) {
-      throw e;
-    }
-  };
+  const isFn = v => typeof v === 'function';
 
-  // --- Storage (Promise-based) ---
-  async function getValue(key, defaultValue = undefined) {
-    if (hasGM && isFunction(GM.getValue)) return await GM.getValue(key, defaultValue);
-    if (typeof GM_getValue === 'function') {
+  // --- Storage ---
+  async function getValue(key, def) {
+    if (hasGM && isFn(GM.getValue)) return GM.getValue(key, def);
+    if (isFn(GM_getValue)) {
       try {
-        const v = GM_getValue(key);
-        return v === undefined ? defaultValue : v;
+        const val = GM_getValue(key);
+        return val === undefined ? def : val;
       } catch (e) {
         return Promise.reject(e);
       }
     }
-    return Promise.reject(new Error('GM.getValue not available in this environment'));
+    return Promise.reject(new Error('GM.getValue not available'));
   }
 
   function setValue(key, value) {
-    if (hasGM && isFunction(GM.setValue)) return GM.setValue(key, value);
-    if (typeof GM_setValue === 'function') {
+    if (hasGM && isFn(GM.setValue)) return GM.setValue(key, value);
+    if (isFn(GM_setValue)) {
       try {
         GM_setValue(key, value);
         return Promise.resolve();
@@ -64,12 +57,12 @@ const GMC = (function() {
         return Promise.reject(e);
       }
     }
-    return Promise.reject(new Error('GM.setValue not available in this environment'));
+    return Promise.reject(new Error('GM.setValue not available'));
   }
 
   function deleteValue(key) {
-    if (hasGM && isFunction(GM.deleteValue)) return GM.deleteValue(key);
-    if (typeof GM_deleteValue === 'function') {
+    if (hasGM && isFn(GM.deleteValue)) return GM.deleteValue(key);
+    if (isFn(GM_deleteValue)) {
       try {
         GM_deleteValue(key);
         return Promise.resolve();
@@ -77,30 +70,30 @@ const GMC = (function() {
         return Promise.reject(e);
       }
     }
-    return Promise.reject(new Error('GM.deleteValue not available in this environment'));
+    return Promise.reject(new Error('GM.deleteValue not available'));
   }
 
   function listValues() {
-    if (hasGM && isFunction(GM.listValues)) return GM.listValues();
-    if (typeof GM_listValues === 'function') {
+    if (hasGM && isFn(GM.listValues)) return GM.listValues();
+    if (isFn(GM_listValues)) {
       try {
         return Promise.resolve(GM_listValues());
       } catch (e) {
         return Promise.reject(e);
       }
     }
-    return Promise.reject(new Error('GM.listValues not available in this environment'));
+    return Promise.reject(new Error('GM.listValues not available'));
   }
 
-  // --- XHR / fetch ---
+  // --- XHR ---
   function xmlHttpRequest(details = {}) {
     return new Promise((resolve, reject) => {
-      const done = (resp) => resolve(resp);
-      const fail = (err) => reject(err);
+      const success = resp => resolve(resp);
+      const fail = err => reject(err);
 
-      if (hasGM && isFunction(GM.xmlHttpRequest)) {
-        const d = Object.assign({}, details);
-        if (!d.onload) d.onload = done;
+      if (hasGM && isFn(GM.xmlHttpRequest)) {
+        const d = { ...details };
+        if (!d.onload) d.onload = success;
         if (!d.onerror) d.onerror = fail;
         try {
           GM.xmlHttpRequest(d);
@@ -109,9 +102,10 @@ const GMC = (function() {
         }
         return;
       }
-      if (typeof GM_xmlhttpRequest === 'function') {
-        const d = Object.assign({}, details);
-        if (!d.onload) d.onload = done;
+
+      if (isFn(GM_xmlhttpRequest)) {
+        const d = { ...details };
+        if (!d.onload) d.onload = success;
         if (!d.onerror) d.onerror = fail;
         try {
           GM_xmlhttpRequest(d);
@@ -120,231 +114,133 @@ const GMC = (function() {
         }
         return;
       }
-      return reject(new Error('GM.xmlHttpRequest not available in this environment'));
+
+      reject(new Error('GM.xmlHttpRequest not available'));
     });
   }
 
-  // --- download / saveAs ---
-  function download(urlOrBlob, filename = 'download', options = {}) {
-    // If manager supports GM.download / GM_download
-    if (hasGM && isFunction(GM.download)) {
+  // --- Clipboard ---
+  function setClipboard(data, type) {
+    if (hasGM && isFn(GM.setClipboard)) {
       try {
-        return GM.download({
-          url: urlOrBlob,
-          name: filename,
-          ...options
-        });
+        return Promise.resolve(GM.setClipboard(data, type));
       } catch (e) {
         return Promise.reject(e);
       }
     }
-    if (typeof GM_download === 'function') {
+    if (isFn(GM_setClipboard)) {
       try {
-        GM_download(urlOrBlob, filename);
+        GM_setClipboard(data, type);
         return Promise.resolve();
       } catch (e) {
         return Promise.reject(e);
       }
     }
-    return Promise.reject(new Error('GM.download not available in this environment'));
-  }
-
-  // convenience alias for saveAs (some engines expose GM_saveAs or GM.saveAs)
-  function saveAs(blob, filename = 'file') {
-    if (hasGM && isFunction(GM.saveAs)) {
-      try {
-        return GM.saveAs(blob, filename);
-      } catch (e) {
-        return Promise.reject(e);
-      }
-    }
-    if (typeof GM_saveAs === 'function') {
-      try {
-        GM_saveAs(blob, filename);
-        return Promise.resolve();
-      } catch (e) {
-        return Promise.reject(e);
-      }
-    }
-    return Promise.reject(new Error('saveAs not available in this environment'));
-  }
-
-  // --- resources: getResourceText / getResourceURL ---
-  async function getResourceText(name) {
-    if (hasGM && isFunction(GM.getResourceText)) return await GM.getResourceText(name);
-    if (typeof GM_getResourceText === 'function') return GM_getResourceText(name);
-    // fallback: if resources not declared, try to find by @resource mapping in script metadata is not accessible here.
-    // Best effort: reject
-    return Promise.reject(new Error('getResourceText not available in this environment'));
-  }
-
-  async function getResourceURL(name) {
-    if (hasGM && isFunction(GM.getResourceURL)) return await GM.getResourceURL(name);
-    if (typeof GM_getResourceURL === 'function') return GM_getResourceURL(name);
-    return Promise.reject(new Error('getResourceURL not available in this environment'));
-  }
-
-  // --- clipboard ---
-  function setClipboard(text) {
-    if (hasGM && isFunction(GM.setClipboard)) return Promise.resolve(GM.setClipboard(text));
-    if (typeof GM_setClipboard === 'function') {
-      try {
-        GM_setClipboard(text);
-        return Promise.resolve();
-      } catch (e) {
-        return Promise.reject(e);
-      }
-    }
-    return Promise.reject(new Error('GM.setClipboard not available in this environment'));
-  }
-
-  // --- notifications ---
-  function notification(options) {
-    const opts = typeof options === 'string' ? {
-      text: options
-    } : (options || {});
-    if (hasGM && isFunction(GM.notification)) {
-      try {
-        GM.notification(opts);
-        return Promise.resolve();
-      } catch (e) {
-        return Promise.reject(e);
-      }
-    }
-    if (typeof GM_notification === 'function') {
-      try {
-        GM_notification(opts.text || opts);
-        return Promise.resolve();
-      } catch (e) {
-        return Promise.reject(e);
-      }
-    }
-    return Promise.reject(new Error('GM.notification not available in this environment'));
+    return Promise.reject(new Error('GM.setClipboard not available'));
   }
 
   // --- addStyle ---
   function addStyle(css) {
     if (!css) return;
-    if (hasGM && isFunction(GM.addStyle)) {
+    if (hasGM && isFn(GM.addStyle)) {
       try {
-        GM.addStyle(css);
-        return;
-      } catch (e) {
-        /* fallback */
-      }
+        return GM.addStyle(css);
+      } catch (e) { /* fallback */ }
     }
-    if (typeof GM_addStyle === 'function') {
+    if (isFn(GM_addStyle)) {
       try {
-        GM_addStyle(css);
-        return;
-      } catch (e) {
-        /* fallback */
-      }
+        return GM_addStyle(css);
+      } catch (e) { /* fallback */ }
     }
-    return Promise.reject(new Error('GM.addStyle not available in this environment'));
+    return Promise.reject(new Error('GM.addStyle not available'));
   }
 
-  // --- registerMenuCommand ---
+  // --- Menu ---
   function registerMenuCommand(caption, fn, accessKey) {
-    if (hasGM && isFunction(GM.registerMenuCommand)) {
+    if (hasGM && isFn(GM.registerMenuCommand)) {
       try {
-        return GM.registerMenuCommand(caption, fn, accessKey);
-      } catch (e) {
-        /* fallback */
-      }
-    }
-    if (typeof GM_registerMenuCommand === 'function') {
-      try {
-        return GM_registerMenuCommand(caption, fn, accessKey);
-      } catch (e) {
-        /* fallback */
-      }
-    }
-    return null;
-  }
-
-  // --- openInTab ---
-  function openInTab(url, options = {}) {
-    if (hasGM && isFunction(GM.openInTab)) {
-      try {
-        return GM.openInTab(url, options);
-      } catch (e) {
-        /* fallback */
-      }
-    }
-    if (typeof GM_openInTab === 'function') {
-      try {
-        return GM_openInTab(url, options);
-      } catch (e) {
-        /* fallback */
-      }
-    }
-    return Promise.reject(new Error('GM.openInTab not available in this environment'));
-  }
-
-  // --- tab helpers (best-effort) ---
-  async function getTab(tabId) {
-    if (hasGM && GM.getTab && isFunction(GM.getTab)) return GM.getTab(tabId);
-    if (typeof GM_getTab === 'function') return Promise.resolve(GM_getTab(tabId));
-    return Promise.reject(new Error('getTab not supported here'));
-  }
-
-  async function saveTab(tabObj) {
-    if (hasGM && GM.saveTab && isFunction(GM.saveTab)) return GM.saveTab(tabObj);
-    if (typeof GM_saveTab === 'function') {
-      try {
-        GM_saveTab(tabObj);
-        return Promise.resolve();
+        return Promise.resolve(GM.registerMenuCommand(caption, fn, accessKey));
       } catch (e) {
         return Promise.reject(e);
       }
     }
-    return Promise.reject(new Error('saveTab not supported here'));
+    if (isFn(GM_registerMenuCommand)) {
+      try {
+        return Promise.resolve(GM_registerMenuCommand(caption, fn, accessKey));
+      } catch (e) {
+        return Promise.reject(e);
+      }
+    }
+    return Promise.reject(new Error('GM.registerMenuCommand not available'));
   }
 
-  // --- simple debugging / supported features map ---
+  // --- Value change listeners ---
+  function addValueChangeListener(name, fn) {
+    if (hasGM && isFn(GM.addValueChangeListener)) {
+      return GM.addValueChangeListener(name, fn);
+    }
+    if (isFn(GM_addValueChangeListener)) {
+      return GM_addValueChangeListener(name, fn);
+    }
+    return Promise.reject(new Error('GM.addValueChangeListener not available'));
+  }
+
+  function removeValueChangeListener(id) {
+    if (hasGM && isFn(GM.removeValueChangeListener)) {
+      return GM.removeValueChangeListener(id);
+    }
+    if (isFn(GM_removeValueChangeListener)) {
+      return GM_removeValueChangeListener(id);
+    }
+    return Promise.reject(new Error('GM.removeValueChangeListener not available'));
+  }
+
+  // --- Debug info ---
   const __internal = {
     hasGM,
     hasLegacy,
     available: {
-      getValue: hasGM ? isFunction(GM.getValue) : (typeof GM_getValue === 'function'),
-      setValue: hasGM ? isFunction(GM.setValue) : (typeof GM_setValue === 'function'),
-      xmlHttpRequest: hasGM ? isFunction(GM.xmlHttpRequest) : (typeof GM_xmlhttpRequest === 'function'),
-      download: hasGM ? isFunction(GM.download) : (typeof GM_download === 'function'),
-      notification: hasGM ? isFunction(GM.notification) : (typeof GM_notification === 'function'),
-      addStyle: hasGM ? isFunction(GM.addStyle) : (typeof GM_addStyle === 'function'),
-      registerMenuCommand: hasGM ? isFunction(GM.registerMenuCommand) : (typeof GM_registerMenuCommand === 'function'),
-      setClipboard: hasGM ? isFunction(GM.setClipboard) : (typeof GM_setClipboard === 'function'),
-      getResourceText: hasGM ? isFunction(GM.getResourceText) : (typeof GM_getResourceText === 'function'),
-      getResourceURL: hasGM ? isFunction(GM.getResourceURL) : (typeof GM_getResourceURL === 'function')
+      getValue: hasGM ? isFn(GM.getValue) : isFn(GM_getValue),
+      setValue: hasGM ? isFn(GM.setValue) : isFn(GM_setValue),
+      deleteValue: hasGM ? isFn(GM.deleteValue) : isFn(GM_deleteValue),
+      listValues: hasGM ? isFn(GM.listValues) : isFn(GM_listValues),
+      xmlHttpRequest: hasGM ? isFn(GM.xmlHttpRequest) : isFn(GM_xmlhttpRequest),
+      registerMenuCommand: hasGM ? isFn(GM.registerMenuCommand) : isFn(GM_registerMenuCommand),
+      addStyle: hasGM ? isFn(GM.addStyle) : isFn(GM_addStyle),
+      setClipboard: hasGM ? isFn(GM.setClipboard) : isFn(GM_setClipboard),
+      addValueChangeListener: hasGM ? isFn(GM.addValueChangeListener) : isFn(GM_addValueChangeListener),
+      removeValueChangeListener: hasGM ? isFn(GM.removeValueChangeListener) : isFn(GM_removeValueChangeListener),
     }
   };
 
   // --- Public API ---
-  return {
-    // storage
+  const API = {
     getValue,
     setValue,
     deleteValue,
     listValues,
-    // network
     xmlHttpRequest,
-    // downloads/resources
-    download,
-    saveAs,
-    getResourceText,
-    getResourceURL,
-    // clipboard
     setClipboard,
-    // UI helpers
-    notification,
     addStyle,
     registerMenuCommand,
-    openInTab,
-    // tabs
-    getTab,
-    saveTab,
-    // meta
+    addValueChangeListener,
+    removeValueChangeListener,
     __internal
   };
-})();
+
+  // Attach to global for legacy drop-in
+  global.GMC = API;
+  global.GM_getValue = API.getValue;
+  global.GM_setValue = API.setValue;
+  global.GM_deleteValue = API.deleteValue;
+  global.GM_listValues = API.listValues;
+  global.GM_xmlhttpRequest = API.xmlHttpRequest;
+  global.GM_setClipboard = API.setClipboard;
+  global.GM_addStyle = API.addStyle;
+  global.GM_registerMenuCommand = API.registerMenuCommand;
+  global.GM_addValueChangeListener = API.addValueChangeListener;
+  global.GM_removeValueChangeListener = API.removeValueChangeListener;
+
+  return API;
+
+})(typeof unsafeWindow !== "undefined" ? unsafeWindow : window);

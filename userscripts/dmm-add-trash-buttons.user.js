@@ -93,29 +93,6 @@
   };
 
   /**
-   * Extracts quality tokens from existing regex patterns
-   * Handles both OR patterns like "(1080p|4k|hdr)" and AND patterns with lookaheads
-   */
-  const parseQualityFromRegex = (regex) => {
-    if (!regex || typeof regex !== 'string') return [];
-
-    // Check for OR pattern at end: (token1|token2|token3)
-    const orMatch = regex.match(/\(([^)]+)\)$/);
-    if (orMatch) {
-      return orMatch[1].split('|');
-    }
-
-    // Check for AND patterns with positive lookaheads: (?=.*token)
-    const lookaheadRE = /\(\?\=\.\*((?:\([^)]*\)|[^)])*)\)/g;
-    const matches = [];
-    let m;
-    while ((m = lookaheadRE.exec(regex)) !== null) {
-      matches.push(m[1]);
-    }
-    return matches;
-  };
-
-  /**
    * Removes quality-related patterns from regex to get the base pattern
    * This prevents accumulation of quality patterns when switching between options
    */

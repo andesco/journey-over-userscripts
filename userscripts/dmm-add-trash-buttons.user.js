@@ -172,6 +172,7 @@
       .${p}-logic-selector{margin-right:.75rem;padding-right:.75rem;border-right:1px solid rgba(148,163,184,.15);}
       .${p}-logic-select{background:#1f2937;color:#e6f0ff;border:1px solid rgba(148,163,184,.4);border-radius:4px;padding:.2rem .4rem;font-size:11px;cursor:pointer;}
       .${p}-logic-select:focus{outline:1px solid rgba(59,130,246,.5);}
+      h2.line-clamp-2{display:block!important;-webkit-line-clamp:unset!important;-webkit-box-orient:unset!important;overflow:visible!important;text-overflow:unset!important;white-space:normal!important;} //untruncates titles so they are easier to read
     `;
     const style = document.createElement('style');
     style.textContent = css;

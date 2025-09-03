@@ -33,6 +33,7 @@ Here is a list of the scripts currently available in this repository.
 | MyAnimeList - Add Trakt link | Add trakt link to MyAnimeList anime pages | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/myanimelist-add-trakt-link.user.js) |
 | Nexus Mod - Updated Mod Highlighter | Highlight mods that have updated since you last downloaded them | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/nexusmods-updated-mod-highlighter.user.js) |
 | ThePosterDB - Easy Links | Makes it easier to copy data from ThePosterDB | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/theposterdb-easy-links.user.js) |
+| Youtube - Filter | Filters YouTube videos by age, excluding channel pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/youtube-age-filter.user.js) |
 | YouTube - Resumer | Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/youtube-resumer.user.js) |
 
 ---

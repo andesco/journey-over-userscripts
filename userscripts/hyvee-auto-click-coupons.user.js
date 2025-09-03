@@ -5,6 +5,7 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.hy-vee.com/deals/coupons?offerState=Available
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@01f4e2891bed1a410f72fc6a778c1ba12966e820/libs/utils/utils.js
 // @grant         none
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=hy-vee.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
@@ -14,6 +15,8 @@
 
 (function() {
   'use strict';
+
+  const logger = Logger('Hy-Vee - Auto Clip Coupons', { debug: false });
 
   // Constants for button styling and timing
   const BUTTON_STYLES = {
@@ -61,7 +64,7 @@
     const clipButton = document.getElementById('clipCouponsButton');
     const totalCoupons = clipButtons.length;
 
-    console.log(`Found ${totalCoupons} coupons. Clipping...`);
+    logger(`Found ${totalCoupons} coupons. Clipping...`);
 
     // Clip coupons one by one with a delay
     clipButtons.forEach((button, index) => {
@@ -69,7 +72,7 @@
         button.click();
         updateButtonProgress(clipButton, totalCoupons, index);
 
-        console.log(`Clipped coupon ${index + 1}/${totalCoupons}`);
+        logger(`Clipped coupon ${index + 1}/${totalCoupons}`);
 
         // If all coupons are clipped, disable the button
         if (index === totalCoupons - 1) {
@@ -96,7 +99,7 @@
   // Initialize the script after the page loads
   function initializeScript() {
     createClippingButton();
-    console.log('Clipping button added to the page.');
+    logger('Clipping button added to the page.');
   }
 
   // Wait for the page to load before initializing the script

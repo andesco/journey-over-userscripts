@@ -1,16 +1,18 @@
 // ==UserScript==
 // @name          YouTube - Resumer
-// @version       1.2.2
-// @description   Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage.
+// @version       2.0.0
+// @description   Automatically saves and resumes YouTube videos from where you left off, with playlist, Shorts, and preview handling, plus automatic cleanup.
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.youtube.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
+// @match         *://*.youtube-nocookie.com/*
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@01f4e2891bed1a410f72fc6a778c1ba12966e820/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@01f4e2891bed1a410f72fc6a778c1ba12966e820/libs/utils/utils.js
 // @grant         GM.setValue
 // @grant         GM.getValue
 // @grant         GM.deleteValue
 // @grant         GM.listValues
+// @grant         GM.addValueChangeListener
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
 // @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/youtube-resumer.user.js
@@ -22,127 +24,285 @@
 
   const logger = Logger('YT - Resumer', { debug: false });
 
-  // Get video ID from URL
-  function videoId(url = document.URL) {
-    const urlObj = new URL(url);
-    if (urlObj.pathname === '/watch') { // Handle regular YouTube watch URLs (youtube.com/watch?v=ID)
-      return urlObj.searchParams.get('v');
-    } else if (urlObj.pathname.startsWith('/embed/')) { // Handle embed URLs (youtube.com/embed/ID)
-      return urlObj.pathname.split('/')[2];
-    } else if (urlObj.hostname === 'youtu.be') { // Handle youtu.be shortened URLs (youtu.be/ID)
-      return urlObj.pathname.slice(1);
+  /** CONFIG **/
+  const MIN_SEEK_DIFF = 1.5;
+  const DAYS_REGULAR = 90; // normal videos expire after 90 days
+  const DAYS_SHORTS = 1; // Shorts expire after 1 day
+  const DAYS_PREVIEWS = 10 / (24 * 60); // previews expire after 10 minutes
+  const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+
+  /** STATE **/
+  let activeCleanup = null;
+  let currentContext = { videoId: null, playlistId: null };
+  let lastPlaylistId = null;
+
+  /** UTILS **/
+  const isExpired = status => {
+    if (!status?.lastUpdated) return true;
+    let days;
+    switch (status.videoType) {
+      case 'short':
+        days = DAYS_SHORTS;
+        break;
+      case 'preview':
+        days = DAYS_PREVIEWS;
+        break;
+      default:
+        days = DAYS_REGULAR;
     }
-    return null;
+    return Date.now() - status.lastUpdated > days * 86400 * 1000;
+  };
+
+  /** STORAGE HELPERS **/
+  async function getStorage() {
+    const stored = await GMC.getValue('yt_resumer_storage');
+    return stored || { videos: {}, playlists: {}, meta: {} };
   }
 
-  // Save current progress
-  function save(video, id) {
-    if (!id) return;
-    if (video.currentTime >= 2) {
-      GMC.setValue(id, {
-        LastWatched: Date.now(),
-        StoppedAt: parseInt(video.currentTime),
+  async function setStorage(storage) {
+    await GMC.setValue('yt_resumer_storage', storage);
+  }
+
+  /** VIDEO CONTROL **/
+  async function seekVideo(player, videoEl, time) {
+    if (!player || !videoEl || isNaN(time)) return;
+    if (Math.abs(player.getCurrentTime() - time) > MIN_SEEK_DIFF) {
+      await new Promise(resolve => {
+        const onSeeked = () => {
+          clearTimeout(timeout);
+          videoEl.removeEventListener('seeked', onSeeked);
+          resolve();
+        };
+        const timeout = setTimeout(onSeeked, 1500);
+        videoEl.addEventListener('seeked', onSeeked, { once: true });
+        player.seekTo(time, true, { skipBufferingCheck: window.location.pathname === '/' });
+        logger(`Seeking to ${Math.round(time)}s`);
       });
-      logger.debug(`Saved video ${id} at ${video.currentTime} seconds`);
     }
   }
 
-  // Clean saved progress older than 90 days
-  async function cleanOldValues() {
-    const ninetyDaysMs = 90 * 24 * 60 * 60 * 1000;
-    const now = Date.now();
-
+  /** PLAYBACK MANAGEMENT **/
+  async function resumePlayback(player, videoId, videoEl, inPlaylist = false, playlistId = '', prevPlaylistId = null) {
     try {
-      const ids = await GMC.listValues();
-      for (const id of ids) {
-        const saved = await GMC.getValue(id);
-        if (saved?.LastWatched && saved.LastWatched < now - ninetyDaysMs) {
-          await GMC.deleteValue(id);
-          logger.debug(`Deleted old progress for video ID: ${id}`);
+      const playerSize = player.getPlayerSize();
+      if (playerSize.width === 0 || playerSize.height === 0) return;
+
+      const storage = await getStorage();
+      const key = inPlaylist ? playlistId : videoId;
+      const stored = inPlaylist ? storage.playlists[playlistId] : storage.videos[videoId];
+      if (!stored) return;
+
+      let targetVideoId = videoId;
+      let timeToResume = stored.timestamp;
+
+      if (inPlaylist && stored.videos) {
+        const lastVideo = stored.lastWatchedVideoId;
+        if (playlistId !== prevPlaylistId && lastVideo && videoId !== lastVideo) {
+          targetVideoId = lastVideo;
+        }
+        timeToResume = stored.videos?.[targetVideoId]?.timestamp;
+      }
+
+      if (timeToResume) {
+        if (inPlaylist && videoId !== targetVideoId) {
+          const playlist = await waitForPlaylist(player);
+          const idx = playlist.indexOf(targetVideoId);
+          if (idx !== -1) player.playVideoAt(idx);
+        } else {
+          await seekVideo(player, videoEl, timeToResume);
         }
       }
     } catch (err) {
-      logger.error('Error cleaning old values:', err);
+      logger.error('Failed to resume playback', err);
     }
   }
 
-  // Find video element when it becomes available
-  function findVideo(onVideoFound) {
-    const observer = new MutationObserver(() => {
-      const video = document.querySelector('video.video-stream');
-      if (video) {
-        onVideoFound(video);
-        observer.disconnect();
+  async function updateStatus(player, videoEl, type, playlistId = '') {
+    try {
+      const videoId = player.getVideoData()?.video_id;
+      if (!videoId) return;
+
+      const currentTime = videoEl.currentTime;
+      if (isNaN(currentTime) || currentTime === 0) return;
+
+      const storage = await getStorage();
+      if (playlistId) {
+        storage.playlists[playlistId] = storage.playlists[playlistId] || { lastWatchedVideoId: '', videos: {} };
+        storage.playlists[playlistId].videos[videoId] = {
+          timestamp: currentTime,
+          lastUpdated: Date.now(),
+          videoType: 'playlist'
+        };
+        storage.playlists[playlistId].lastWatchedVideoId = videoId;
+      } else {
+        storage.videos[videoId] = {
+          timestamp: currentTime,
+          lastUpdated: Date.now(),
+          videoType: type
+        };
       }
+
+      await setStorage(storage);
+    } catch (err) {
+      logger.error('Failed to update playback status', err);
+    }
+  }
+
+  /** VIDEO PROCESSING **/
+  async function handleVideo(playerContainer, player, videoEl, skipResume = false) {
+    if (activeCleanup) activeCleanup();
+
+    const urlParams = new URLSearchParams(window.location.search);
+    const videoId = urlParams.get('v') || player.getVideoData()?.video_id;
+    if (!videoId) return;
+
+    const playlistId = urlParams.get('list');
+    currentContext = { videoId, playlistId };
+
+    const isLive = player.getVideoData()?.isLive;
+    const isPreview = playerContainer.id === 'inline-player';
+    const timeSpecified = urlParams.has('t');
+
+    if (isLive || timeSpecified) {
+      lastPlaylistId = playlistId;
+      return;
+    }
+
+    const videoType = window.location.pathname.startsWith('/shorts/') ? 'short' : isPreview ? 'preview' : 'regular';
+    let resumed = false;
+
+    const onTimeUpdate = () => {
+      if (!resumed && !skipResume) {
+        resumed = true;
+        resumePlayback(player, videoId, videoEl, !!playlistId, playlistId, lastPlaylistId);
+      } else {
+        updateStatus(player, videoEl, videoType, playlistId);
+      }
+    };
+
+    const onRemoteUpdate = async (event) => {
+      logger(`Remote update received`);
+      await seekVideo(player, videoEl, event.detail.time);
+    };
+
+    videoEl.addEventListener('timeupdate', onTimeUpdate, true);
+    window.addEventListener('yt-resumer-remote-update', onRemoteUpdate, true);
+
+    activeCleanup = () => {
+      videoEl.removeEventListener('timeupdate', onTimeUpdate, true);
+      window.removeEventListener('yt-resumer-remote-update', onRemoteUpdate, true);
+      currentContext = { videoId: null, playlistId: null };
+    };
+
+    lastPlaylistId = playlistId;
+  }
+
+  /** PLAYLIST HANDLER **/
+  function waitForPlaylist(player) {
+    return new Promise((resolve, reject) => {
+      const existing = player.getPlaylist();
+      if (existing?.length) return resolve(existing);
+
+      let attempts = 0;
+      const interval = setInterval(() => {
+        const list = player.getPlaylist();
+        if (list?.length) {
+          clearInterval(interval);
+          resolve(list);
+        } else if (++attempts > 50) {
+          clearInterval(interval);
+          reject('Playlist not found');
+        }
+      }, 100);
     });
-    observer.observe(document, { childList: true, subtree: true });
   }
 
-  // Listen for timeupdate events and save progress
-  function listen(video) {
-    let lastSrc;
+  /** STORAGE EVENTS **/
+  function onStorageChange(key, newValue, remote) {
+    if (!remote || !newValue) return;
+    // Broadcast update to video if it's current
+    let time;
+    if (key === currentContext.playlistId && newValue.videos) {
+      time = newValue.videos[currentContext.videoId]?.timestamp;
+    } else if (key === currentContext.videoId) {
+      time = newValue.timestamp;
+    }
+    if (time) {
+      window.dispatchEvent(new CustomEvent('yt-resumer-remote-update', { detail: { time } }));
+    }
+  }
 
-    function handleTimeUpdate() {
-      if (!video || isNaN(video.duration)) return;
-      if (id) {
-        save(video, id);
-        lastSrc = video.src;
-      } else if (video.src === lastSrc) {
-        save(video, lastId);
+  /** CLEANUP **/
+  async function cleanupOldData() {
+    try {
+      const storage = await getStorage();
+      for (const vid in storage.videos) {
+        if (isExpired(storage.videos[vid])) delete storage.videos[vid];
       }
-    }
-    video.addEventListener('timeupdate', handleTimeUpdate);
-    return () => video.removeEventListener('timeupdate', handleTimeUpdate);
-  }
-
-  // Resume video from last saved position
-  async function resume(video) {
-    id = videoId();
-    if (!id) return;
-    const saved = await GMC.getValue(id);
-    if (saved?.StoppedAt) {
-      logger.debug('Resuming video', id, 'from', saved.StoppedAt, 'seconds');
-      video.currentTime = saved.StoppedAt;
-    } else {
-      logger.debug('No saved position, starting fresh');
-    }
-  }
-
-  // Remove timestamp from URL
-  function cleanUrl() {
-    const url = new URL(document.URL);
-    url.searchParams.delete('t');
-    window.history.replaceState(null, null, url);
-  }
-
-  // Handle navigation events and embedded video updates
-  let id;
-  let lastId;
-
-  function handleNavigation() {
-    const currentId = videoId();
-    if (currentId && lastId !== currentId) {
-      lastId = currentId;
-      cleanUrl();
-      let removeListeners;
-      findVideo(video => {
-        resume(video);
-        if (removeListeners) removeListeners();
-        removeListeners = listen(video);
-      });
+      for (const pl in storage.playlists) {
+        let changed = false;
+        const playlist = storage.playlists[pl];
+        for (const vid in playlist.videos) {
+          if (isExpired(playlist.videos[vid])) {
+            delete playlist.videos[vid];
+            changed = true;
+          }
+        }
+        if (Object.keys(playlist.videos).length === 0) delete storage.playlists[pl];
+        else if (changed) storage.playlists[pl] = playlist;
+      }
+      await setStorage(storage);
+    } catch (err) {
+      logger.error(`Failed to clean up stored playback statuses: ${err}`);
     }
   }
 
-  // Listen for regular YouTube navigation
-  document.addEventListener('yt-navigate-finish', handleNavigation);
-
-  // Embedded videos may not trigger navigation events
-  if (window.location.pathname.startsWith('/embed/')) {
-    handleNavigation();
-    setInterval(handleNavigation, 1000);
+  async function periodicCleanup() {
+    const storage = await getStorage();
+    const last = storage.meta.lastCleanup || 0;
+    if (Date.now() - last < CLEANUP_INTERVAL) return;
+    storage.meta.lastCleanup = Date.now();
+    await setStorage(storage);
+    logger('This tab is handling the scheduled cleanup');
+    await cleanupOldData();
   }
 
-  // Initialize cleanup
-  cleanOldValues();
+  /** INITIALIZATION **/
+  async function init() {
+    try {
+      window.addEventListener('pagehide', () => activeCleanup?.(), true);
+
+      await periodicCleanup();
+      setInterval(periodicCleanup, CLEANUP_INTERVAL);
+
+      GMC.addValueChangeListener(onStorageChange);
+
+      logger('This tab is handling the initial load');
+      window.addEventListener('pageshow', () => {
+        logger('This tab is handling the video load');
+        initVideoLoad();
+        window.addEventListener('yt-player-updated', onVideoContainerLoad, true);
+        window.addEventListener('yt-autonav-pause-player-ended', () => activeCleanup?.(), true);
+      }, { once: true });
+
+    } catch (err) { logger.error('Initialization failed', err); }
+  }
+
+  function initVideoLoad() {
+    const player = document.querySelector('#movie_player');
+    if (!player) return;
+    const videoEl = player.querySelector('video');
+    if (videoEl) handleVideo(player, player.player_ || player, videoEl);
+  }
+
+  function onVideoContainerLoad(event) {
+    const container = event.target;
+    const player = container?.player_;
+    const videoEl = container?.querySelector('video');
+    if (player && videoEl) handleVideo(container, player, videoEl);
+  }
+
+  /** START **/
+  init();
 
 })();

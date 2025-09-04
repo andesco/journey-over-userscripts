@@ -27,7 +27,6 @@ Here is a list of the scripts currently available in this repository.
 | External links on Trakt | Adds more external links to Trakt.tv pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/external-links-on-trakt.user.js) |
 | GitHub - Latest | Always keep an eye on the latest activity of your favorite projects | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/github-latest.user.js) |
 | Hy-Vee - Auto Clip Coupons | Add a button to manually clip all coupons on the Hy-Vee coupons page. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/hyvee-auto-click-coupons.user.js) |
-| Ironwood RPG Scripts | Calculate time remaining for active skill exp based on current exp and action stats, and display it on the skill page in Ironwood RPG | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/ironwoodrpg-script.user.js) |
 | Magnet Link to Real-Debrid | Automatically send magnet links to Real-Debrid | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/magnet-link-to-real-debrid.user.js) |
 | Mediux - Yaml Fixes | Adds fixes and functions to Mediux | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/mediux-yaml-fixes.user.js) |
 | MyAnimeList - Add Trakt link | Add trakt link to MyAnimeList anime pages | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/myanimelist-add-trakt-link.user.js) |

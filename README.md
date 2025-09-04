@@ -31,9 +31,10 @@ Here is a list of the scripts currently available in this repository.
 | Mediux - Yaml Fixes | Adds fixes and functions to Mediux | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/mediux-yaml-fixes.user.js) |
 | MyAnimeList - Add Trakt link | Add trakt link to MyAnimeList anime pages | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/myanimelist-add-trakt-link.user.js) |
 | Nexus Mod - Updated Mod Highlighter | Highlight mods that have updated since you last downloaded them | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/nexusmods-updated-mod-highlighter.user.js) |
+| Nyaa - Tweaks | Redirects to English-translated anime and formats timestamps in 12-hour time. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/nyaa-tweaks.user.js) |
 | ThePosterDB - Easy Links | Makes it easier to copy data from ThePosterDB | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/theposterdb-easy-links.user.js) |
 | Youtube - Filter | Filters YouTube videos by age, excluding channel pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-age-filter.user.js) |
-| YouTube - Resumer | Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-resumer.user.js) |
+| YouTube - Resumer | Automatically saves and resumes YouTube videos from where you left off, with playlist, Shorts, and preview handling, plus automatic cleanup. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-resumer.user.js) |
 
 ---
 

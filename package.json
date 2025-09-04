@@ -3,10 +3,14 @@
   "version": "1.0.0",
   "type": "module",
   "scripts": {
-    "build": "bun ./scripts/build.js"
+    "build": "bun ./scripts/build.js",
+    "lint": "eslint \"userscripts/**/*.user.js\" --ext .js --report-unused-disable-directives"
   },
   "dependencies": {
     "terser": "^5.43.1",
     "js-beautify": "^1.15.4"
+  },
+  "devDependencies": {
+    "eslint": "8.47.0"
   }
 }

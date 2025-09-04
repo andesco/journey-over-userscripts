@@ -6,6 +6,7 @@
 // @license       MIT
 // @match         *://mediux.pro/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.xmlHttpRequest
 // @grant         GM.setValue
@@ -19,6 +20,8 @@
 
 (function() {
   'use strict';
+
+  const logger = Logger('Mediux - Yaml Fixes', { debug: false });
 
   /**
    * MediuxFixes - Main application namespace
@@ -138,7 +141,7 @@
             return true;
           })
           .catch(err => {
-            console.error('Failed to copy: ', err);
+            logger.error('Failed to copy: ', err);
             this.showNotification("Failed to copy to clipboard", 3000);
             return false;
           });
@@ -211,11 +214,11 @@
               resolve(response.responseText);
             },
             onerror: () => {
-              console.log(`[Mediux Fixes] An error occurred loading set ${setId}`);
+              logger.error(`An error occurred loading set ${setId}`);
               reject(new Error('Request failed'));
             },
             ontimeout: () => {
-              console.log(`[Mediux Fixes] It took too long to load set ${setId}`);
+              logger.error(`It took too long to load set ${setId}`);
               reject(new Error('Request timed out'));
             }
           });
@@ -265,8 +268,8 @@
                 let filesArray;
                 try {
                   filesArray = JSON.parse(match[1]);
-                } catch (error) {
-                  console.error('Error parsing filesArray:', error);
+                } catch (err) {
+                  logger.error('Error parsing filesArray:', err);
                   continue;
                 }
 
@@ -286,18 +289,18 @@
                     // Build YAML entry for movie poster
                     originalText += `  ${movieId}: # ${movieTitle} Poster by ${creator} on MediUX.  https://mediux.pro/sets/${set.id}\n    url_poster: https://api.mediux.pro/assets/${posterId}\n    `;
                     processedMovies.push(movieTitle);
-                    console.log(`Title: ${movieTitle}\nPoster: ${posterId}`);
+                    logger(`Title: ${movieTitle}\nPoster: ${posterId}`);
                   } else if (f.movie_id_backdrop !== null) {
                     // Handle movie backdrops
                     const backdropId = f.fileType === 'backdrop' && f.id.length > 0 ? f.id : 'N/A';
                     const movieId = MediuxFixes.utils.isNonEmptyObject(f.movie_id_backdrop) ? f.movie_id_backdrop.id : 'N/A';
                     originalText += `url_background: https://api.mediux.pro/assets/${backdropId}\n\n`;
-                    console.log(`Backdrop: ${backdropId}\nMovie id: ${movieId}`);
+                    logger(`Backdrop: ${backdropId}\nMovie id: ${movieId}`);
                   }
                 }
               }
-            } catch (error) {
-              console.error(`Error processing set ${set.id}:`, error);
+            } catch (err) {
+              logger.error(`Error processing set ${set.id}:`, err);
             }
           }
         } finally {
@@ -322,14 +325,14 @@
             MediuxFixes.utils.updateButtonState(button);
             MediuxFixes.utils.showNotification("Results copied to clipboard!");
           } catch (err) {
-            console.error('Failed to copy: ', err);
+            logger.error('Failed to copy: ', err);
           }
         });
 
         // Append the link to the codeblock
         codeblock.appendChild(copyLink);
         const totalTime = Math.floor((Date.now() - startTime) / 1000);
-        console.log(`Total time taken: ${totalTime} seconds`);
+        logger(`Total time taken: ${totalTime} seconds`);
       },
 
       /**
@@ -554,7 +557,7 @@
     init() {
       waitForKeyElements("code.whitespace-pre-wrap", () => {
         this.ui.createInterface();
-        console.log('[Mediux YAML Fixes] Initialized');
+        logger('Initialized');
       });
     }
   };

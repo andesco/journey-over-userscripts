@@ -88,7 +88,6 @@
       if (playerSize.width === 0 || playerSize.height === 0) return;
 
       const storage = await getStorage();
-      const key = inPlaylist ? playlistId : videoId;
       const stored = inPlaylist ? storage.playlists[playlistId] : storage.videos[videoId];
       if (!stored) return;
 

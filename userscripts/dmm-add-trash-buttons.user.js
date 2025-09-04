@@ -610,7 +610,6 @@
       this.lastUrl = location.href;
       this.retry = 0;
       this.mutationObserver = null;
-      this.pendingWait = false;
       this.debouncedCheck = debounce(this.checkPage.bind(this), 150);
 
       this.setupHistoryHooks();

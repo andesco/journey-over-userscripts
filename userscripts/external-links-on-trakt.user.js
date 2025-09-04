@@ -36,7 +36,6 @@
     SCRIPT_ID: GM.info.script.name.toLowerCase().replace(/\s/g, '-'),
     CONFIG_KEY: 'external-trakt-links-config',
     TITLE: `${GM.info.script.name} Settings`,
-    SCRIPT_NAME: GM.info.script.name,
     METADATA_SITES: [{
         name: 'Rotten Tomatoes',
         desc: 'Provides a direct link to Rotten Tomatoes for the selected title.'

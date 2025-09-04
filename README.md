@@ -35,6 +35,7 @@ Here is a list of the scripts currently available in this repository.
 | ThePosterDB - Easy Links | Makes it easier to copy data from ThePosterDB | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/theposterdb-easy-links.user.js) |
 | Youtube - Filter | Filters YouTube videos by age, excluding channel pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-age-filter.user.js) |
 | YouTube - Resumer | Automatically saves and resumes YouTube videos from where you left off, with playlist, Shorts, and preview handling, plus automatic cleanup. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-resumer.user.js) |
+| YouTube - Tweaks | Random tweaks and fixes for YouTube! | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-tweaks.user.js) |
 
 ---
 

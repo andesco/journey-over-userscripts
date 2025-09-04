@@ -1,10 +1,11 @@
 // ==UserScript==
 // @name          YouTube - Filters
-// @version       2.0.0
+// @version       2.0.1
 // @description   Filters YouTube videos by age, excluding channel pages.
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.youtube.com/*
+// @match         *://*.youtube-nocookie.com/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
 // @grant         GM.setValue

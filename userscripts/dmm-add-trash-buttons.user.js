@@ -6,8 +6,8 @@
 // @license       MIT
 // @match         *://debridmediamanager.com/*
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@f7bfd16f830e9bfdd6c261e5c2b414fe90cf7455/libs/dmm/button-data.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
 // @grant         GM.getValue
 // @grant         GM.setValue
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com
@@ -24,6 +24,7 @@
   const CONFIG = {
     CONTAINER_SELECTOR: '.mb-2',
     RELEVANT_PAGE_RX: /debridmediamanager\.com\/(movie|show)\/[^\/]+/,
+    MAX_RETRIES: 20,
     CSS_CLASS_PREFIX: 'dmm-tg',
     STORAGE_KEY: 'dmm-tg-quality-options',
     LOGIC_STORAGE_KEY: 'dmm-tg-logic-mode'
@@ -607,10 +608,13 @@
     constructor() {
       this.buttonManager = new ButtonManager();
       this.lastUrl = location.href;
+      this.retry = 0;
+      this.mutationObserver = null;
       this.pendingWait = false;
       this.debouncedCheck = debounce(this.checkPage.bind(this), 150);
 
       this.setupHistoryHooks();
+      this.setupMutationObserver();
       this.checkPage();
     }
 
@@ -643,8 +647,25 @@
     }
 
     /**
+     * Sets up mutation observer to detect DOM changes
+     * Triggers page checks when new elements are added
+     */
+    setupMutationObserver() {
+      if (this.mutationObserver) this.mutationObserver.disconnect();
+      this.mutationObserver = new MutationObserver((mutations) => {
+        for (const m of mutations) {
+          if (m.type === 'childList' && m.addedNodes.length > 0) {
+            this.debouncedCheck();
+            break;
+          }
+        }
+      });
+      this.mutationObserver.observe(document.body, { childList: true, subtree: true });
+    }
+
+    /**
      * Checks current page and initializes buttons if on relevant page
-     * Uses waitForElement for SPA pages that load content asynchronously
+     * Uses retry mechanism for SPA pages that load content asynchronously
      */
     async checkPage() {
       const url = location.href;
@@ -656,32 +677,21 @@
         return;
       }
 
-      // If the container is present, initialize immediately
+      // Wait for container element to be available
       const container = qs(CONFIG.CONTAINER_SELECTOR);
-      if (container) {
-        this.pendingWait = false;
-        await this.buttonManager.initialize(container);
-        this.lastUrl = url;
+      if (!container) {
+        if (this.retry < CONFIG.MAX_RETRIES) {
+          this.retry++;
+          this.debouncedCheck();
+        } else {
+          this.retry = 0;
+        }
         return;
       }
 
-      // If a wait is already pending, avoid creating another observer
-      if (this.pendingWait) return;
-
-      // Wait for the container using waitForElement
-      this.pendingWait = true;
-      waitForElement(CONFIG.CONTAINER_SELECTOR)
-        .then(async (el) => {
-          this.pendingWait = false;
-          // Ensure we are still on a relevant page
-          if (!CONFIG.RELEVANT_PAGE_RX.test(location.href)) return;
-          await this.buttonManager.initialize(el);
-          this.lastUrl = location.href;
-        })
-        .catch(err => {
-          this.pendingWait = false;
-          logger.error('waitForElement timeout', err);
-        });
+      this.retry = 0;
+      await this.buttonManager.initialize(container);
+      this.lastUrl = url;
     }
   }
 
@@ -696,10 +706,7 @@
   ready(() => {
     try {
       if (!BUTTON_DATA.length) return;
-      // Wait for the primary container to exist before booting the PageManager
-      waitForElement(CONFIG.CONTAINER_SELECTOR)
-        .then(() => new PageManager())
-        .catch(err => logger.error('waitForElement timeout', err));
+      new PageManager();
     } catch (err) {
       logger.error('dmm-tg boot error', err);
     }

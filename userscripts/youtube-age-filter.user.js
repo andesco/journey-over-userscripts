@@ -5,8 +5,8 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.youtube.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@ca4db7b2eea7158411ca7c612c12c5f5ecf1371d/libs/gm/gmcompat.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@ca4db7b2eea7158411ca7c612c12c5f5ecf1371d/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
 // @grant         GM.setValue
 // @grant         GM.getValue
 // @grant         GM.registerMenuCommand

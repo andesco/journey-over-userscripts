@@ -5,9 +5,10 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://trakt.tv/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
 // @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/wikidata/index.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue
 // @grant         GM.getValue
@@ -172,20 +173,13 @@
     // ======================
     //  Event Handling
     // ======================
-    async setupEventListeners() {
+    setupEventListeners() {
       // Watch for external links container and body element creation
-      waitForElement('.sidebar .external')
-        .then(() => this.handleExternalLinks())
-        .catch(err => logger.error('waitForElement timeout', err));
-
-      waitForElement('body')
-        .then(() => this.addSettingsMenu())
-        .catch(err => logger.error('waitForElement timeout', err));
+      NodeCreationObserver.onCreation('.sidebar .external', () => this.handleExternalLinks());
+      NodeCreationObserver.onCreation('body', () => this.addSettingsMenu());
 
       // Watch for collection links in list descriptions on collection pages
-      waitForElement('.text.readmore')
-        .then(() => this.handleCollectionLinks())
-        .catch(err => logger.error('waitForElement timeout', err));
+      NodeCreationObserver.onCreation('.text.readmore', () => this.handleCollectionLinks());
     }
 
     // ======================

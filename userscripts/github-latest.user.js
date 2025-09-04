@@ -5,7 +5,7 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://github.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@3f583300710ef7fa14d141febac3c8a2055fa5f8/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
 // @grant         none
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=github.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
@@ -80,21 +80,45 @@
 
   // Insert the "Latest issues" tab into the nav
   const addLatestIssuesButton = async () => {
+    const NAV_SELECTOR = 'nav.js-repo-nav > .UnderlineNav-body';
+
     try {
-      const navBody = await waitForElement('nav.js-repo-nav > .UnderlineNav-body');
-      if (navBody.querySelector(`#${BUTTON_ID}`)) {
-        logger.debug('Latest issues button already exists');
-        return;
-      }
+      const tryAdd = (navBody) => {
+        if (!navBody) return false;
 
-      const template = findTemplateTab(navBody);
-      if (!template) {
-        logger.warn('No suitable template tab found');
-        return;
-      }
+        // Avoid duplicates
+        if (navBody.querySelector(`#${BUTTON_ID}`)) {
+          logger.debug('Latest issues button already exists');
+          return true;
+        }
 
-      navBody.appendChild(createLatestIssuesTab(template));
-      logger('Latest issues button added');
+        const template = findTemplateTab(navBody);
+        if (!template) {
+          logger.warn('No suitable template tab found');
+          return false;
+        }
+
+        navBody.appendChild(createLatestIssuesTab(template));
+        logger('Latest issues button added');
+        return true;
+      };
+
+      // Initial attempt
+      const navBody = document.querySelector(NAV_SELECTOR);
+      if (tryAdd(navBody)) return;
+
+      // If nav isn't present yet (SPA load), observe DOM until it appears
+      const observer = new MutationObserver((_, obs) => {
+        const navBody = document.querySelector(NAV_SELECTOR);
+        if (tryAdd(navBody)) {
+          obs.disconnect();
+        }
+      });
+
+      observer.observe(document.body, {
+        childList: true,
+        subtree: true
+      });
     } catch (err) {
       logger.error('Failed to add Latest issues button:', err);
     }

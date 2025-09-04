@@ -5,7 +5,7 @@
 // @name         @journeyover/wikidata
 // @description  Wikidata for my userscripts
 // @license      MIT
-// @version      1.1.1
+// @version      1.1.2
 // @homepageURL  https://github.com/StylusThemes/Userscripts
 // ==/UserLibrary==
 // @connect      query.wikidata.org
@@ -209,13 +209,11 @@ this.Wikidata = class {
                 TMDB: results.TMDb_movie || results.TMDb_tv ?
                   results.TMDb_movie ?
                   this._link("TMDb_movie", results.TMDb_movie.value) :
-                  this._link("TMDb_tv", results.TMDb_tv.value) :
-                  void 0,
+                  this._link("TMDb_tv", results.TMDb_tv.value) : void 0,
                 TVDB: results.TVDb_movie || results.TVDb_tv ?
                   results.TVDb_movie ?
                   this._link("TVDb_movie", results.TVDb_movie.value) :
-                  this._link("TVDb_tv", results.TVDb_tv.value) :
-                  void 0,
+                  this._link("TVDb_tv", results.TVDb_tv.value) : void 0,
                 Trakt: results.Trakt ? this._link("Trakt", results.Trakt.value) : void 0,
                 "Rotten Tomatoes": results.RottenTomatoes ? this._link("Rotten Tomatoes", results.RottenTomatoes.value) : void 0,
                 Metacritic: results.Metacritic ? this._link("Metacritic", results.Metacritic.value) : void 0,

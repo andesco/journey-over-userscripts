@@ -1,12 +1,12 @@
 // ==UserScript==
 // @name          ThePosterDB - Easy Links
-// @version       2.0.2
+// @version       2.1.0
 // @description   Makes it easier to copy data from ThePosterDB
 // @author        Journey Over
 // @license       MIT
 // @match         *://theposterdb.com/*
-// @require       https://code.jquery.com/jquery-3.5.1.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
+// @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.setClipboard
 // @grant         GM.addStyle
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=theposterdb.com

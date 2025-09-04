@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name          MyAnimeList - Add Trakt link
-// @version       1.0.1
+// @version       1.1.0
 // @description   Add trakt link to MyAnimeList anime pages
 // @author        Journey Over
 // @license       MIT
 // @match         *://myanimelist.net/anime/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
 // @grant         GM.xmlHttpRequest
 // @grant         GM.setValue
 // @grant         GM.getValue
@@ -20,40 +21,24 @@
 (async function() {
   'use strict';
 
-  // Logging function
-  function log(message, level = 'info') {
-    const prefix = `[MAL-Trakt]`;
-    switch (level) {
-      case 'error':
-        console.error(`${prefix} ERROR: ${message}`);
-        break;
-      case 'warn':
-        console.warn(`${prefix} WARNING: ${message}`);
-        break;
-      case 'debug':
-        console.debug(`${prefix} DEBUG: ${message}`);
-        break;
-      default:
-        console.log(`${prefix} ${message}`);
-    }
-  }
+  const logger = Logger('MAL - Add Trakt link', { debug: false });
 
   const malId = window.location.pathname.split('/')[2];
   if (!malId) {
-    log('No MAL ID found in URL', 'warn');
+    logger.warn('No MAL ID found in URL');
     return;
   }
 
   // Find navigation elements
   const navUl = document.querySelector('#horiznav_nav ul');
   if (!navUl) {
-    log('Could not find navigation list', 'error');
+    logger.error('Could not find navigation list');
     return;
   }
 
   // Check for existing Trakt link
   if (navUl.querySelector('a[href*="trakt.tv"]')) {
-    log('Trakt link already exists', 'debug');
+    logger.debug('Trakt link already exists');
     return;
   }
 
@@ -63,19 +48,19 @@
     try {
       // Check if cache is still valid (24 hours)
       if (Date.now() - cachedData.timestamp < 24 * 60 * 60 * 1000) {
-        log(`Using cached data for MAL ID ${malId}`, 'debug');
+        logger.debug(`Using cached data for MAL ID ${malId}`);
         createTraktLink(cachedData.data);
         return;
       } else {
-        log(`Cache expired for MAL ID ${malId}`, 'debug');
+        logger.debug(`Cache expired for MAL ID ${malId}`);
       }
-    } catch (e) {
-      log(`Error parsing cached data: ${e.message}`, 'error');
+    } catch (err) {
+      logger.error(`Error parsing cached data: ${err.message}`);
     }
   }
 
   // Fetch from API if no valid cache
-  log(`Fetching Trakt data for MAL ID ${malId}`, 'info');
+  logger(`Fetching Trakt data for MAL ID ${malId}`);
   GMC.xmlHttpRequest({
     method: 'GET',
     url: `https://animeapi.my.id/myanimelist/${malId}`,
@@ -84,7 +69,7 @@
         try {
           const data = JSON.parse(response.responseText);
           if (!data.trakt || !data.trakt_type) {
-            log('No Trakt data found in API response', 'warn');
+            logger.warn('No Trakt data found in API response');
             return;
           }
 
@@ -94,17 +79,17 @@
             timestamp: Date.now()
           });
 
-          log(`Successfully retrieved Trakt data for MAL ID ${malId}`, 'info');
+          logger(`Successfully retrieved Trakt data for MAL ID ${malId}`);
           createTraktLink(data);
-        } catch (e) {
-          log(`Error parsing API response: ${e.message}`, 'error');
+        } catch (err) {
+          logger.error(`Error parsing API response: ${err.message}`);
         }
       } else {
-        log(`API request failed with status ${response.status}`, 'error');
+        logger.error(`API request failed with status ${response.status}`);
       }
     },
     onerror: function(error) {
-      log(`API request error: ${error.message}`, 'error');
+      logger.error(`API request error: ${error.message}`);
     }
   });
 
@@ -141,6 +126,6 @@
     navUl.appendChild(listItem);
     listItem.appendChild(link);
 
-    log(`Added Trakt link: ${traktUrl}`, 'info');
+    logger(`Added Trakt link: ${traktUrl}`);
   }
 })();

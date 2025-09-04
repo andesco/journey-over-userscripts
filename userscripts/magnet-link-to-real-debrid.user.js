@@ -1,11 +1,12 @@
 // ==UserScript==
 // @name          Magnet Link to Real-Debrid
-// @version       2.3.1
+// @version       2.4.0
 // @description   Automatically send magnet links to Real-Debrid
 // @author        Journey Over
 // @license       MIT
 // @match         *://*/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
 // @grant         GM.xmlHttpRequest
 // @grant         GM.getValue
 // @grant         GM.setValue
@@ -20,6 +21,8 @@
 (function() {
   'use strict';
 
+  const logger = Logger('Magnet Link to Real-Debrid', { debug: false });
+
   /* Constants & Utilities */
   const STORAGE_KEY = 'realDebridConfig';
   const API_BASE = 'https://api.real-debrid.com/rest/1.0';
@@ -28,17 +31,7 @@
   const DEFAULTS = {
     apiKey: '',
     allowedExtensions: ['mp3', 'm4b', 'mp4', 'mkv', 'cbz', 'cbr'],
-    filterKeywords: ['sample', 'bloopers', 'trailer'],
-    debugMode: false
-  };
-
-  // Simple debounce helper for DOM mutation handling
-  const debounce = (fn, ms = 120) => {
-    let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...args), ms);
-    };
+    filterKeywords: ['sample', 'bloopers', 'trailer']
   };
 
   /* Errors */
@@ -64,8 +57,8 @@
       if (!value) return null;
       try {
         return typeof value === 'string' ? JSON.parse(value) : value;
-      } catch (e) {
-        console.warn('Config parse failed, resetting to defaults.', e);
+      } catch (err) {
+        logger.error('Config parse failed, resetting to defaults.', err);
         return null;
       }
     }
@@ -97,87 +90,200 @@
   /* Real-Debrid Service */
   class RealDebridService {
     #apiKey;
-    #debug;
 
-    constructor(apiKey, {
-      debugMode = false
-    } = {}) {
-      if (!apiKey) throw new ConfigurationError('API Key required');
-      this.#apiKey = apiKey;
-      this.#debug = Boolean(debugMode);
+    // Cross-tab reservation settings
+    static RATE_STORE_KEY = 'realDebrid_rate_counter';
+    static RATE_LIMIT = 250; // max requests per 60s
+    static RATE_HEADROOM = 5; // leave a small headroom
+    static RATE_WINDOW_MS = 60 * 1000;
+
+    static _sleep(ms) { return new Promise(res => setTimeout(res, ms)); }
+
+    // Reserve a request slot across tabs using a simple counter + window stored in GM storage
+    static async _reserveRequestSlot() {
+      const key = RealDebridService.RATE_STORE_KEY;
+      const limit = RealDebridService.RATE_LIMIT - RealDebridService.RATE_HEADROOM;
+      const windowMs = RealDebridService.RATE_WINDOW_MS;
+      const maxRetries = 8;
+      let attempt = 0;
+      while (attempt < maxRetries) {
+        const now = Date.now();
+        let obj = null;
+        try {
+          const raw = await GMC.getValue(key);
+          obj = raw ? JSON.parse(raw) : null;
+        } catch (e) {
+          obj = null;
+        }
+
+        if (!obj || typeof obj !== 'object' || !obj.windowStart || (now - obj.windowStart) >= windowMs) {
+          // start a fresh window and take slot 1
+          const fresh = { windowStart: now, count: 1 };
+          try {
+            await GMC.setValue(key, JSON.stringify(fresh));
+            return;
+          } catch (e) {
+            // retry
+            attempt += 1;
+            await RealDebridService._sleep(40 * attempt);
+            continue;
+          }
+        }
+
+        // existing window
+        if ((obj.count || 0) < limit) {
+          obj.count = (obj.count || 0) + 1;
+          try {
+            await GMC.setValue(key, JSON.stringify(obj));
+            return;
+          } catch (e) {
+            attempt += 1;
+            await RealDebridService._sleep(40 * attempt);
+            continue;
+          }
+        }
+
+        // window full, wait until it expires
+        const earliest = obj.windowStart;
+        const waitFor = Math.max(50, windowMs - (now - earliest) + 50);
+        logger.warn(`Rate window full (${obj.count}/${RealDebridService.RATE_LIMIT}), waiting ${Math.round(waitFor)}ms`);
+        await RealDebridService._sleep(waitFor);
+        attempt += 1;
+      }
+      throw new Error('Failed to reserve request slot');
     }
 
-    #log(...args) {
-      if (this.#debug) console.log('[RealDebridService]', ...args);
+    constructor(apiKey) {
+      if (!apiKey) throw new ConfigurationError('API Key required');
+      this.#apiKey = apiKey;
     }
 
     // Generic request wrapper: handles headers, encoding and JSON parsing/errors
     #request(method, endpoint, data = null) {
-      return new Promise((resolve, reject) => {
-        const url = `${API_BASE}${endpoint}`;
-        const payload = data ? new URLSearchParams(data).toString() : null;
+      const maxAttempts = 5;
+      const baseDelay = 500; // ms
+      // Rate reservation keys and limits
+      if (!RealDebridService.RATE_STORE_KEY) RealDebridService.RATE_STORE_KEY = 'realDebrid_rate_counter';
+      if (!RealDebridService.RATE_LIMIT) RealDebridService.RATE_LIMIT = 250;
+      if (!RealDebridService.RATE_HEADROOM) RealDebridService.RATE_HEADROOM = 5; // keep a small headroom
+      const attemptRequest = async (attempt) => {
+        // Reserve a slot across tabs before making the request to avoid hitting the 1-minute cap
+        try {
+          await RealDebridService._reserveRequestSlot();
+        } catch (err) {
+          // reservation failures fallback to proceeding; the request wrapper still handles 429
+          logger.error('Request slot reservation failed, proceeding (will rely on backoff)', err);
+        }
 
-        this.#log('request', method, url, data);
+        return new Promise((resolve, reject) => {
+          const url = `${API_BASE}${endpoint}`;
+          const payload = data ? new URLSearchParams(data).toString() : null;
+          logger.debug('[RealDebridService] request', { method, url, data, attempt });
 
-        GMC.xmlHttpRequest({
-          method,
-          url,
-          headers: {
-            Authorization: `Bearer ${this.#apiKey}`,
-            Accept: 'application/json',
-            'Content-Type': 'application/x-www-form-urlencoded'
-          },
-          data: payload,
-          onload: (resp) => {
-            this.#log('response', resp.status, resp.responseText && resp.responseText.slice && resp.responseText.slice(0, 500));
+          GMC.xmlHttpRequest({
+            method,
+            url,
+            headers: {
+              Authorization: `Bearer ${this.#apiKey}`,
+              Accept: 'application/json',
+              'Content-Type': 'application/x-www-form-urlencoded'
+            },
+            data: payload,
+            onload: (resp) => {
+              logger.debug('[RealDebridService] response', { status: resp.status });
 
-            if (!resp || typeof resp.status === 'undefined') {
-              return reject(new RealDebridError('Invalid API response'));
+              if (!resp || typeof resp.status === 'undefined') {
+                return reject(new RealDebridError('Invalid API response'));
+              }
+              if (resp.status < 200 || resp.status >= 300) {
+                // handle rate limit specially with retry/backoff
+                if (resp.status === 429 && attempt < maxAttempts) {
+                  const retryAfter = (() => {
+                    try {
+                      const parsed = JSON.parse(resp.responseText || '{}');
+                      return parsed.retry_after || null;
+                    } catch (e) {
+                      return null;
+                    }
+                  })();
+                  const jitter = Math.random() * 200;
+                  const backoff = retryAfter ? (retryAfter * 1000) : (baseDelay * Math.pow(2, attempt) + jitter);
+                  logger.warn(`[RealDebridService] Rate limited (429). Retrying in ${Math.round(backoff)}ms (attempt ${attempt + 1}/${maxAttempts})`);
+                  return setTimeout(() => {
+                    attemptRequest(attempt + 1).then(resolve).catch(reject);
+                  }, backoff);
+                }
+                const msg = resp.responseText ? resp.responseText : `HTTP ${resp.status}`;
+                return reject(new RealDebridError(`API Error: ${msg}`, resp.status));
+              }
+              if (resp.status === 204 || !resp.responseText) return resolve({});
+              try {
+                const parsed = JSON.parse(resp.responseText.trim());
+                return resolve(parsed);
+              } catch (err) {
+                logger.error('[RealDebridService] parse error', err);
+                return reject(new RealDebridError(`Failed to parse API response: ${err.message}`, resp.status));
+              }
+            },
+            onerror: (err) => {
+              logger.error('[RealDebridService] Network request failed', err);
+              return reject(new RealDebridError('Network request failed'));
+            },
+            ontimeout: () => {
+              logger.warn('[RealDebridService] Request timed out');
+              return reject(new RealDebridError('Request timed out'));
             }
-            if (resp.status < 200 || resp.status >= 300) {
-              const msg = resp.responseText ? resp.responseText : `HTTP ${resp.status}`;
-              return reject(new RealDebridError(`API Error: ${msg}`, resp.status));
-            }
-            if (resp.status === 204 || !resp.responseText) return resolve({});
-            try {
-              const parsed = JSON.parse(resp.responseText.trim());
-              return resolve(parsed);
-            } catch (e) {
-              this.#log('parse error', e);
-              return reject(new RealDebridError(`Failed to parse API response: ${e.message}`, resp.status));
-            }
-          },
-          onerror: (err) => {
-            this.#log('network error', err);
-            return reject(new RealDebridError('Network request failed'));
-          },
-          ontimeout: () => {
-            this.#log('timeout');
-            return reject(new RealDebridError('Request timed out'));
-          }
+          });
         });
-      });
+      };
+
+      return attemptRequest(0);
     }
 
-    addMagnet(magnet) {
+    async addMagnet(magnet) {
       return this.#request('POST', '/torrents/addMagnet', {
         magnet
       });
     }
 
-    getTorrentInfo(torrentId) {
+    async getTorrentInfo(torrentId) {
       return this.#request('GET', `/torrents/info/${torrentId}`);
     }
 
-    selectFiles(torrentId, filesCsv) {
+    async selectFiles(torrentId, filesCsv) {
       return this.#request('POST', `/torrents/selectFiles/${torrentId}`, {
         files: filesCsv
       });
     }
 
-    getExistingTorrents() {
-      // Gracefully return an empty array on failure
-      return this.#request('GET', '/torrents').catch(() => []);
+    async getExistingTorrents() {
+      // Paginate through all torrents using limit/offset until empty or error
+      const all = [];
+      const limit = 2500; // page size
+      let pageNum = 1;
+      while (true) {
+        try {
+          logger.debug(`[RealDebridService] Fetching torrents page ${pageNum} (limit=${limit})`);
+          const page = await this.#request('GET', `/torrents?page=${pageNum}&limit=${limit}`);
+          if (!Array.isArray(page) || page.length === 0) {
+            logger.warn(`[RealDebridService] No torrents returned for page ${pageNum}`);
+            break;
+          }
+          all.push(...page);
+          if (page.length < limit) {
+            logger.debug(`[RealDebridService] Last page reached (${pageNum}) with ${page.length} items`);
+            break;
+          }
+          pageNum += 1;
+        } catch (err) {
+          // If rate limited, propagate so caller can handle backoff; otherwise return what we have
+          if (err instanceof RealDebridError && err.statusCode === 429) throw err;
+          logger.error('[RealDebridService] Failed to fetch existing torrents page', err);
+          break;
+        }
+      }
+      logger.debug(`[RealDebridService] Fetched total ${all.length} existing torrents`);
+      return all;
     }
   }
 
@@ -195,9 +301,9 @@
     async initialize() {
       try {
         this.#existing = await this.#api.getExistingTorrents();
-        if (this.#config.debugMode) console.log('[MagnetLinkProcessor] existing torrents', this.#existing);
-      } catch (e) {
-        console.warn('Failed to load existing torrents', e);
+        logger.debug('[MagnetLinkProcessor] existing torrents', this.#existing);
+      } catch (err) {
+        logger.error('[MagnetLinkProcessor] Failed to load existing torrents', err);
         this.#existing = [];
       }
     }
@@ -217,7 +323,7 @@
         const fallback = magnetLink.match(/xt=urn:btih:([A-Za-z0-9]+)/i);
         if (fallback) return fallback[1].toUpperCase();
         return null;
-      } catch (e) {
+      } catch (err) {
         const m = magnetLink.match(/xt=urn:btih:([A-Za-z0-9]+)/i);
         return m ? m[1].toUpperCase() : null;
       }
@@ -246,7 +352,7 @@
             try {
               const re = new RegExp(kw.slice(1, -1), 'i');
               if (re.test(path) || re.test(name)) return false;
-            } catch (e) {
+            } catch (err) {
               // invalid regex: ignore it
             }
           }
@@ -285,44 +391,35 @@
     static createConfigDialog(currentConfig) {
       const dialog = document.createElement('div');
       dialog.innerHTML = `
-          <div style="position:fixed;top:0;left:0;width:100%;height:100%;background:rgba(0,0,0,0.85);display:flex;justify-content:center;align-items:center;z-index:10000;font-family:Arial,sans-serif;">
-              <div style="background:#1e1e2f;color:#ffffff;padding:35px;border-radius:16px;max-width:500px;width:90%;box-shadow:0 10px 30px rgba(0,0,0,0.5);border:1px solid #2c2c3a;">
-                  <h2 style="text-align:center;color:#4db6ac;margin-bottom:25px;border-bottom:2px solid #4db6ac;padding-bottom:12px;">Real-Debrid Configuration</h2>
-
-                  <div style="margin-bottom:20px;">
-                      <label style="display:block;margin-bottom:8px;font-weight:bold;color:#b2ebf2;">API Key</label>
-                      <input type="text" id="apiKey" placeholder="Enter your Real-Debrid API Key" value="${currentConfig.apiKey}"
-                          style="width:100%;padding:12px;border:1px solid #4db6ac;border-radius:8px;background-color:#2c2c3a;color:#ffffff;">
-                  </div>
-
-                  <div style="margin-bottom:20px;">
-                      <label style="display:block;margin-bottom:8px;font-weight:bold;color:#b2ebf2;">Allowed Extensions</label>
-                      <textarea id="extensions" placeholder="Enter file extensions to allow"
-                          style="width:100%;padding:12px;border:1px solid #4db6ac;border-radius:8px;background-color:#2c2c3a;color:#ffffff;min-height:80px;">${currentConfig.allowedExtensions.join(',')}</textarea>
-                      <small style="color:#80cbc4;display:block;margin-top:6px;">Separate extensions with commas (e.g., mp4,mkv,avi)</small>
-                  </div>
-
-                  <div style="margin-bottom:20px;">
-                      <label style="display:block;margin-bottom:8px;font-weight:bold;color:#b2ebf2;">Filter Keywords</label>
-                      <textarea id="keywords" placeholder="Enter keywords to filter out"
-                          style="width:100%;padding:12px;border:1px solid #4db6ac;border-radius:8px;background-color:#2c2c3a;color:#ffffff;min-height:80px;">${currentConfig.filterKeywords.join(',')}</textarea>
-                      <small style="color:#80cbc4;display:block;margin-top:6px;">Separate keywords with commas (e.g., sample, /trailer/, /featurette?s/)</small>
-                  </div>
-
-                  <div style="margin-bottom:20px;">
-                      <label style="display:flex;align-items:center;color:#b2ebf2;">
-                          <input type="checkbox" id="debugMode" ${currentConfig.debugMode ? 'checked' : ''}
-                              style="margin-right:12px;width:18px;height:18px;border-radius:4px;background-color:#2c2c3a;border:2px solid #4db6ac;">
-                          Enable Debug Mode
-                      </label>
-                      <small style="color:#80cbc4;display:block;margin-top:6px;">Provides additional logging in the browser console</small>
-                  </div>
-
-                  <div style="display:flex;justify-content:space-between;margin-top:25px;">
-                      <button id="saveBtn" style="background:#4db6ac;color:#1e1e2f;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;transition:all 0.3s ease-in-out;font-weight:bold;">Save</button>
-                      <button id="cancelBtn" style="background:#e57373;color:#1e1e2f;border:none;padding:12px 24px;border-radius:8px;cursor:pointer;transition:all 0.3s ease-in-out;font-weight:bold;">Cancel</button>
-                  </div>
+          <div style="position:fixed;inset:0;background:rgba(0,0,0,0.8);display:flex;align-items:center;justify-content:center;z-index:10000;font-family:Inter, system-ui, -apple-system, 'Segoe UI', Roboto, Arial;">
+            <div role="dialog" aria-modal="true" style="background:#0f1724;color:#e6eef3;padding:24px;border-radius:12px;max-width:560px;width:94%;box-shadow:0 8px 30px rgba(2,6,23,0.6);border:1px solid rgba(255,255,255,0.04);">
+              <div style="display:flex;align-items:center;justify-content:space-between;margin-bottom:18px;">
+                <h2 style="margin:0;font-size:18px;color:#7dd3fc;">Real-Debrid Settings</h2>
+                <button id="cancelBtnTop" aria-label="Close" style="background:transparent;border:none;color:#9fb7c8;cursor:pointer;font-size:18px;">✕</button>
               </div>
+
+              <div style="display:grid;grid-template-columns:1fr;gap:12px;">
+                <label style="font-weight:600;color:#cfeeff;">API Key
+                  <input type="text" id="apiKey" placeholder="Enter your Real-Debrid API Key" value="${currentConfig.apiKey}"
+                    style="width:100%;margin-top:6px;padding:10px;border-radius:8px;border:1px solid rgba(125,211,252,0.12);background:#051229;color:#e6eef3;font-size:13px;" />
+                </label>
+
+                <label style="font-weight:600;color:#cfeeff;">Allowed Extensions
+                  <textarea id="extensions" placeholder="mp4,mkv,avi" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;border:1px solid rgba(125,211,252,0.12);background:#051229;color:#e6eef3;font-size:13px;min-height:84px;">${currentConfig.allowedExtensions.join(',')}</textarea>
+                  <small style="color:#96c5d8;display:block;margin-top:6px;">Comma-separated (e.g., mp4,mkv,avi)</small>
+                </label>
+
+                <label style="font-weight:600;color:#cfeeff;">Filter Keywords
+                  <textarea id="keywords" placeholder="sample,/trailer/" style="width:100%;margin-top:6px;padding:10px;border-radius:8px;border:1px solid rgba(125,211,252,0.12);background:#051229;color:#e6eef3;font-size:13px;min-height:84px;">${currentConfig.filterKeywords.join(',')}</textarea>
+                  <small style="color:#96c5d8;display:block;margin-top:6px;">Keywords or regex-like entries (comma-separated)</small>
+                </label>
+              </div>
+
+              <div style="display:flex;justify-content:flex-end;gap:10px;margin-top:18px;">
+                <button id="saveBtn" style="background:#06b6d4;color:#04202a;border:none;padding:10px 16px;border-radius:8px;cursor:pointer;font-weight:700;">Save</button>
+                <button id="cancelBtn" style="background:transparent;color:#9fb7c8;border:1px solid rgba(159,183,200,0.08);padding:10px 16px;border-radius:8px;cursor:pointer;">Cancel</button>
+              </div>
+            </div>
           </div>
       `;
 
@@ -368,7 +465,7 @@
       });
       msgDiv.textContent = message;
       document.body.appendChild(msgDiv);
-      setTimeout(() => msgDiv.remove(), 3000);
+      setTimeout(() => msgDiv.remove(), 8000);
     }
 
     static createMagnetIcon() {
@@ -397,19 +494,18 @@
     }
 
     _populateFromDOM() {
-      try {
-        const links = Array.from(document.querySelectorAll('a[href^="magnet:"]'));
-        links.forEach(link => {
-          const next = link.nextElementSibling;
-          if (next && next.getAttribute && next.getAttribute(INSERTED_ICON_ATTR)) {
-            const key = this._magnetKeyFor(link.href) || `href:${link.href.trim().toLowerCase()}`;
-            if (!this.keyToIcon.has(key)) this.keyToIcon.set(key, next);
+      const links = Array.from(document.querySelectorAll('a[href^="magnet:"]'));
+      links.forEach(link => {
+        const next = link.nextElementSibling;
+        if (next?.getAttribute && next.getAttribute(INSERTED_ICON_ATTR)) {
+          const key = this._magnetKeyFor(link.href);
+          if (key && !this.keyToIcon.has(key)) {
+            this.keyToIcon.set(key, next);
           }
-        });
-      } catch (e) {
-        // ignore DOM inspection errors
-      }
+        }
+      });
     }
+
 
     _magnetKeyFor(href) {
       const hash = MagnetLinkProcessor.parseMagnetHash(href);
@@ -421,40 +517,45 @@
       }
     }
 
+    _markIconAsExisting(icon, type) {
+      icon.title = type === 'existing' ? 'Already on Real-Debrid' : 'Added to Real-Debrid';
+      icon.style.filter = 'grayscale(100%)';
+      icon.style.opacity = '0.65';
+    }
+
     // Attach click behavior to the icon: lazily initializes API and processes magnet
     _attach(icon, link) {
-      icon.addEventListener('click', async (ev) => {
-        ev.preventDefault();
-
+      const processMagnet = async () => {
         const key = this._magnetKeyFor(link.href);
         const ok = await ensureApiInitialized();
+
         if (!ok) {
           UIManager.showToast('Real-Debrid API key not configured. Use the menu to set it.', 'info');
           return;
         }
 
-        if (key && key.startsWith('hash:') && this.processor && this.processor.isTorrentExists(key.split(':')[1])) {
+        if (key?.startsWith('hash:') && this.processor?.isTorrentExists(key.split(':')[1])) {
           UIManager.showToast('Torrent already exists on Real-Debrid', 'info');
-          icon.title = 'Already on Real-Debrid';
-          icon.style.filter = 'grayscale(100%)';
-          icon.style.opacity = '0.65';
+          this._markIconAsExisting(icon, 'existing');
           return;
         }
 
         try {
           const count = await this.processor.processMagnetLink(link.href);
           UIManager.showToast(`Added to Real-Debrid — ${count} file(s) selected`, 'success');
-          icon.style.filter = 'grayscale(100%)';
-          icon.style.opacity = '0.65';
-          icon.title = 'Added to Real-Debrid';
+          this._markIconAsExisting(icon, 'added');
         } catch (err) {
-          UIManager.showToast(err && err.message ? err.message : 'Failed to process magnet', 'error');
-          console.error(err);
+          UIManager.showToast(err?.message || 'Failed to process magnet', 'error');
+          logger.error(err);
         }
-      }, {
-        once: false
+      };
+
+      icon.addEventListener('click', (ev) => {
+        ev.preventDefault();
+        processMagnet();
       });
     }
+
 
     addIconsTo(documentRoot = document) {
       const links = Array.from(documentRoot.querySelectorAll('a[href^="magnet:"]'));
@@ -484,16 +585,16 @@
 
     markExistingTorrents() {
       if (!this.processor) return;
+
       for (const [key, icon] of this.keyToIcon.entries()) {
         if (!key.startsWith('hash:')) continue;
         const hash = key.split(':')[1];
         if (this.processor.isTorrentExists(hash)) {
-          icon.title = 'Already on Real-Debrid';
-          icon.style.filter = 'grayscale(100%)';
-          icon.style.opacity = '0.65';
+          this._markIconAsExisting(icon, 'existing');
         }
       }
     }
+
 
     startObserving() {
       if (this.observer) return;
@@ -504,7 +605,7 @@
             break;
           }
         }
-      }, 180));
+      }, 150));
       this.observer.observe(document.body, {
         childList: true,
         subtree: true
@@ -520,31 +621,36 @@
 
   /* Lazy API initialization - only when needed; cached promise so it runs once */
   let _apiInitPromise = null;
-  let _apiAvailable = false;
   let _realDebridService = null;
   let _magnetProcessor = null;
   let _integratorInstance = null;
 
   async function ensureApiInitialized() {
     if (_apiInitPromise) return _apiInitPromise;
+    // Do not initialize API if page doesn't contain magnet links
+    try {
+      if (!document.querySelector || !document.querySelector('a[href^="magnet:"]')) {
+        return Promise.resolve(false);
+      }
+    } catch (err) {
+      // If DOM access fails, continue with init to be safe
+    }
+
     const cfg = await ConfigManager.getConfig();
     if (!cfg.apiKey) {
-      _apiAvailable = false;
       return Promise.resolve(false);
     }
 
     try {
-      _realDebridService = new RealDebridService(cfg.apiKey, cfg);
-    } catch (e) {
-      console.warn('RealDebridService not created:', e);
-      _apiAvailable = false;
+      _realDebridService = new RealDebridService(cfg.apiKey);
+    } catch (err) {
+      logger.warn('RealDebridService not created:', err);
       return Promise.resolve(false);
     }
 
     _magnetProcessor = new MagnetLinkProcessor(cfg, _realDebridService);
     _apiInitPromise = _magnetProcessor.initialize()
       .then(() => {
-        _apiAvailable = true;
         if (_integratorInstance) {
           _integratorInstance.setProcessor(_magnetProcessor);
           _integratorInstance.markExistingTorrents();
@@ -552,8 +658,7 @@
         return true;
       })
       .catch(err => {
-        console.warn('Failed to initialize Real-Debrid integration', err);
-        _apiAvailable = false;
+        logger.warn('Failed to initialize Real-Debrid integration', err);
         return false;
       });
 
@@ -579,8 +684,7 @@
           const newCfg = {
             apiKey: dialog.querySelector('#apiKey').value.trim(),
             allowedExtensions: dialog.querySelector('#extensions').value.split(',').map(e => e.trim()).filter(Boolean),
-            filterKeywords: dialog.querySelector('#keywords').value.split(',').map(k => k.trim()).filter(Boolean),
-            debugMode: dialog.querySelector('#debugMode').checked
+            filterKeywords: dialog.querySelector('#keywords').value.split(',').map(k => k.trim()).filter(Boolean)
           };
           try {
             await ConfigManager.saveConfig(newCfg);
@@ -593,16 +697,20 @@
           }
         });
 
-        cancelBtn.addEventListener('click', () => {
+        const cancelTop = dialog.querySelector('#cancelBtnTop');
+        const doClose = () => {
           if (dialog.parentNode) document.body.removeChild(dialog);
           if (dialog._escHandler) document.removeEventListener('keydown', dialog._escHandler);
-        });
+        };
+
+        cancelBtn.addEventListener('click', doClose);
+        if (cancelTop) cancelTop.addEventListener('click', doClose);
 
         const apiInput = dialog.querySelector('#apiKey');
         if (apiInput) apiInput.focus();
       });
     } catch (err) {
-      console.error('Initialization failed:', err);
+      logger.error('Initialization failed:', err);
     }
   }
 

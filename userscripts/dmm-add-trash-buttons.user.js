@@ -1,12 +1,13 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.2.3
+// @version       2.3.0
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
 // @match         *://debridmediamanager.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@f7bfd16f830e9bfdd6c261e5c2b414fe90cf7455/libs/dmm/button-data.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/gm/gmcompat.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/dmm/button-data.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
 // @grant         GM.getValue
 // @grant         GM.setValue
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com
@@ -18,16 +19,18 @@
 (function() {
   'use strict';
 
+  const logger = Logger('DMM - Add Trash Guide Regex Buttons', { debug: false });
+
   const CONFIG = {
     CONTAINER_SELECTOR: '.mb-2',
     RELEVANT_PAGE_RX: /debridmediamanager\.com\/(movie|show)\/[^\/]+/,
-    DEBOUNCE_MS: 120,
     MAX_RETRIES: 20,
     CSS_CLASS_PREFIX: 'dmm-tg',
     STORAGE_KEY: 'dmm-tg-quality-options',
     LOGIC_STORAGE_KEY: 'dmm-tg-logic-mode'
   };
 
+  // Ensure BUTTON_DATA is a valid array
   const BUTTON_DATA = Array.isArray(window?.DMM_BUTTON_DATA) ? window.DMM_BUTTON_DATA : [];
 
   /**
@@ -76,7 +79,7 @@
     try {
       el.focus();
       if (typeof el.setSelectionRange === 'function') el.setSelectionRange(value.length, value.length);
-    } catch (e) { /* Ignore focus errors */ }
+    } catch (err) { /* Ignore focus errors */ }
 
     // Trigger events that React listens for
     el.dispatchEvent(new Event('input', { bubbles: true }));
@@ -87,38 +90,7 @@
       if (el._valueTracker && typeof el._valueTracker.setValue === 'function') {
         el._valueTracker.setValue(value);
       }
-    } catch (e) { /* Ignore React internals errors */ }
-  };
-
-  const debounce = (fn, ms) => {
-    let t;
-    return (...args) => {
-      clearTimeout(t);
-      t = setTimeout(() => fn(...args), ms);
-    };
-  };
-
-  /**
-   * Extracts quality tokens from existing regex patterns
-   * Handles both OR patterns like "(1080p|4k|hdr)" and AND patterns with lookaheads
-   */
-  const parseQualityFromRegex = (regex) => {
-    if (!regex || typeof regex !== 'string') return [];
-
-    // Check for OR pattern at end: (token1|token2|token3)
-    const orMatch = regex.match(/\(([^)]+)\)$/);
-    if (orMatch) {
-      return orMatch[1].split('|');
-    }
-
-    // Check for AND patterns with positive lookaheads: (?=.*token)
-    const lookaheadRE = /\(\?\=\.\*((?:\([^)]*\)|[^)])*)\)/g;
-    const matches = [];
-    let m;
-    while ((m = lookaheadRE.exec(regex)) !== null) {
-      matches.push(m[1]);
-    }
-    return matches;
+    } catch (err) { /* Ignore React internals errors */ }
   };
 
   /**
@@ -240,8 +212,8 @@
 
         const logicStored = await GMC.getValue(CONFIG.LOGIC_STORAGE_KEY, null);
         this.useAndLogic = logicStored ? JSON.parse(logicStored) : false;
-      } catch (e) {
-        console.warn('dmm-tg: failed to load quality options', e);
+      } catch (err) {
+        logger.error('dmm-tg: failed to load quality options', err);
         this.selectedOptions = [];
         this.useAndLogic = false;
       }
@@ -320,8 +292,8 @@
 
       try {
         GMC.setValue(CONFIG.LOGIC_STORAGE_KEY, JSON.stringify(this.useAndLogic));
-      } catch (e) {
-        console.warn('dmm-tg: failed to save logic mode', e);
+      } catch (err) {
+        logger.error('dmm-tg: failed to save logic mode', err);
       }
 
       this.updateInputWithQualityOptions();
@@ -343,8 +315,8 @@
 
       try {
         GMC.setValue(CONFIG.STORAGE_KEY, JSON.stringify(this.selectedOptions));
-      } catch (e) {
-        console.warn('dmm-tg: failed to save quality options', e);
+      } catch (err) {
+        logger.error('dmm-tg: failed to save quality options', err);
       }
 
       this.updateInputWithQualityOptions();
@@ -442,6 +414,7 @@
 
     async initialize(container) {
       if (!container || this.container === container) return;
+      logger.debug('ButtonManager.initialize called', { container: !!container, sameContainer: this.container === container });
       this.cleanup();
       this.container = container;
 
@@ -464,6 +437,7 @@
       });
 
       await this.qualityManager.initialize(container);
+      logger.debug('ButtonManager: created dropdowns', { count: this.dropdowns.size });
 
       // Set up global event listeners for menu management
       document.addEventListener('click', this.documentClickHandler, true);
@@ -590,15 +564,16 @@
       let target = this.findTargetInput();
 
       if (!target) {
-        console.warn('dmm-tg: could not find target input element');
+        logger.error('dmm-tg: could not find target input element', { name, value });
         return;
       }
 
       try {
         const finalValue = this.qualityManager.applyQualityOptionsToValue(value || '');
+        logger.debug('Applying pattern to target', { name, value, finalValue, targetId: target.id || null });
         setInputValueReactive(target, finalValue);
       } catch (err) {
-        console.error('dmm-tg: failed to set input value', err, {
+        logger.error('dmm-tg: failed to set input value', err, {
           value,
           name,
           target: target?.id || target?.className || 'unknown'
@@ -633,9 +608,9 @@
     constructor() {
       this.buttonManager = new ButtonManager();
       this.lastUrl = location.href;
-      this.mutationObserver = null;
       this.retry = 0;
-      this.debouncedCheck = debounce(this.checkPage.bind(this), CONFIG.DEBOUNCE_MS);
+      this.mutationObserver = null;
+      this.debouncedCheck = debounce(this.checkPage.bind(this), 150);
 
       this.setupHistoryHooks();
       this.setupMutationObserver();
@@ -706,7 +681,7 @@
       if (!container) {
         if (this.retry < CONFIG.MAX_RETRIES) {
           this.retry++;
-          setTimeout(() => this.debouncedCheck(), 150);
+          this.debouncedCheck();
         } else {
           this.retry = 0;
         }
@@ -732,7 +707,7 @@
       if (!BUTTON_DATA.length) return;
       new PageManager();
     } catch (err) {
-      console.error('dmm-tg boot error', err);
+      logger.error('dmm-tg boot error', err);
     }
   });
 })();

@@ -131,52 +131,12 @@ function Logger(prefix, opts = {}) {
   return log;
 }
 
-/**
- * Wait for an element to appear in the DOM.
- *
- * Returns a Promise that resolves with the first Element matching the
- * provided CSS selector, or rejects with an Error if the element does not
- * appear within the given timeout.
- *
- * Behaviour:
- * - If the element already exists the Promise resolves immediately with it.
- * - Uses a MutationObserver (childList + subtree) to detect added nodes.
- * - Cleans up both the observer and the timeout timer when resolved/rejected.
- *
- * @param {string} selector - CSS selector to wait for (e.g. '.container .item').
- * @param {number} [timeout=5000] - Milliseconds to wait before rejecting.
- * @returns {Promise<Element>} Promise resolving to the found Element or rejecting with an Error on timeout.
- */
-function waitForElement(selector, timeout = 5000) {
-  return new Promise((resolve, reject) => {
-    const existing = document.querySelector(selector);
-    if (existing) return resolve(existing);
-
-    const observer = new MutationObserver(() => {
-      const el = document.querySelector(selector);
-      if (el) {
-        observer.disconnect();
-        clearTimeout(timer);
-        resolve(el);
-      }
-    });
-
-    observer.observe(document.body, { childList: true, subtree: true });
-
-    const timer = setTimeout(() => {
-      observer.disconnect();
-      reject(new Error(`Element '${selector}' not found within ${timeout}ms.`));
-    }, timeout);
-  });
-}
-
 // Expose for CommonJS (node) and as browser globals to match previous usage.
 if (typeof module !== 'undefined' && module.exports) {
-  module.exports = { debounce, Logger, waitForElement };
+  module.exports = { debounce, Logger };
 }
 
 if (typeof window !== 'undefined') {
   window.debounce = debounce;
   window.Logger = Logger;
-  window.waitForElement = waitForElement;
 }

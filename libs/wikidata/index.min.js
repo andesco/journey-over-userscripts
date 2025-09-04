@@ -5,7 +5,7 @@
 // @name         @journeyover/wikidata
 // @description  Wikidata for my userscripts
 // @license      MIT
-// @version      1.1.1
+// @version      1.1.2
 // @homepageURL  https://github.com/StylusThemes/Userscripts
 // ==/UserLibrary==
 // @connect      query.wikidata.org

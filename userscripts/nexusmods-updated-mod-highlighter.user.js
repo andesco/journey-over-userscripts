@@ -1,11 +1,11 @@
 // ==UserScript==
 // @name          Nexus Mod - Updated Mod Highlighter
-// @version       1.0.1
+// @version       1.1.0
 // @description   Highlight mods that have updated since you last downloaded them
 // @author        Journey Over
 // @license       MIT
 // @match         *://www.nexusmods.com/users/myaccount?tab=download+history
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
 // @grant         none
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=nexusmods.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts

@@ -1,13 +1,13 @@
 // ==UserScript==
 // @name          External links on Trakt
-// @version       3.2.3
+// @version       3.3.0
 // @description   Adds more external links to Trakt.tv pages.
 // @author        Journey Over
 // @license       MIT
 // @match         *://trakt.tv/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/gm/gmcompat.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@56863671fb980dd59047bdc683893601b816f494/libs/utils/utils.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@5f2cbff53b0158ca07c86917994df0ed349eb96c/libs/wikidata/index.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/wikidata/index.min.js
 // @require       https://cdn.jsdelivr.net/npm/node-creation-observer@1.2.0/release/node-creation-observer-latest.min.js
 // @require       https://cdn.jsdelivr.net/npm/jquery@3.7.1/dist/jquery.min.js
 // @grant         GM.deleteValue

@@ -23,17 +23,17 @@ Here is a list of the scripts currently available in this repository.
 
 | Script | Description | Install |
 |---|---|---:|
-| DMM - Add Trash Guide Regex Buttons | Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/dmm-add-trash-buttons.user.js) |
-| External links on Trakt | Adds more external links to Trakt.tv pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/external-links-on-trakt.user.js) |
-| GitHub - Latest | Always keep an eye on the latest activity of your favorite projects | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/github-latest.user.js) |
-| Hy-Vee - Auto Clip Coupons | Add a button to manually clip all coupons on the Hy-Vee coupons page. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/hyvee-auto-click-coupons.user.js) |
-| Magnet Link to Real-Debrid | Automatically send magnet links to Real-Debrid | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/magnet-link-to-real-debrid.user.js) |
-| Mediux - Yaml Fixes | Adds fixes and functions to Mediux | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/mediux-yaml-fixes.user.js) |
-| MyAnimeList - Add Trakt link | Add trakt link to MyAnimeList anime pages | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/myanimelist-add-trakt-link.user.js) |
-| Nexus Mod - Updated Mod Highlighter | Highlight mods that have updated since you last downloaded them | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/nexusmods-updated-mod-highlighter.user.js) |
-| ThePosterDB - Easy Links | Makes it easier to copy data from ThePosterDB | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/theposterdb-easy-links.user.js) |
-| Youtube - Filter | Filters YouTube videos by age, excluding channel pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/youtube-age-filter.user.js) |
-| YouTube - Resumer | Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/dev/userscripts/youtube-resumer.user.js) |
+| DMM - Add Trash Guide Regex Buttons | Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/dmm-add-trash-buttons.user.js) |
+| External links on Trakt | Adds more external links to Trakt.tv pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/external-links-on-trakt.user.js) |
+| GitHub - Latest | Always keep an eye on the latest activity of your favorite projects | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/github-latest.user.js) |
+| Hy-Vee - Auto Clip Coupons | Add a button to manually clip all coupons on the Hy-Vee coupons page. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/hyvee-auto-click-coupons.user.js) |
+| Magnet Link to Real-Debrid | Automatically send magnet links to Real-Debrid | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/magnet-link-to-real-debrid.user.js) |
+| Mediux - Yaml Fixes | Adds fixes and functions to Mediux | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/mediux-yaml-fixes.user.js) |
+| MyAnimeList - Add Trakt link | Add trakt link to MyAnimeList anime pages | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/myanimelist-add-trakt-link.user.js) |
+| Nexus Mod - Updated Mod Highlighter | Highlight mods that have updated since you last downloaded them | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/nexusmods-updated-mod-highlighter.user.js) |
+| ThePosterDB - Easy Links | Makes it easier to copy data from ThePosterDB | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/theposterdb-easy-links.user.js) |
+| Youtube - Filter | Filters YouTube videos by age, excluding channel pages. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-age-filter.user.js) |
+| YouTube - Resumer | Automatically saves and resumes YouTube videos from where you left off, even after closing the tab. Cleans up saved progress after 90 days to manage storage. | [Install](https://raw.githubusercontent.com/StylusThemes/Userscripts/main/userscripts/youtube-resumer.user.js) |
 
 ---
 

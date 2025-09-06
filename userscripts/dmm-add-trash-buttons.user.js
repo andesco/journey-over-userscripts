@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.3.0
+// @version       2.3.1
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
@@ -45,7 +45,8 @@
     { key: 'x264', name: 'x264', values: ['[xh][\\s._-]?264'] },
     { key: 'x265', name: 'x265', values: ['[xh][\\s._-]?265', '\\bHEVC\\b'] },
     { key: 'hdr', name: 'HDR', values: ['hdr'] },
-    { key: 'remux', name: 'Remux', values: ['remux'] }
+    { key: 'remux', name: 'Remux', values: ['remux'] },
+    { key: 'atmos', name: 'Atmos', values: ['atmos'] }
   ];
 
   // DOM utility functions

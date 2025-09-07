@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.3.1
+// @version       2.4.0
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
@@ -21,42 +21,50 @@
 
   const logger = Logger('DMM - Add Trash Guide Regex Buttons', { debug: false });
 
+  /**
+   * Configuration constants for the userscript
+   * Defines selectors, storage keys, and behavioral settings
+   */
   const CONFIG = {
-    CONTAINER_SELECTOR: '.mb-2',
-    RELEVANT_PAGE_RX: /debridmediamanager\.com\/(movie|show)\/[^\/]+/,
-    MAX_RETRIES: 20,
-    CSS_CLASS_PREFIX: 'dmm-tg',
-    STORAGE_KEY: 'dmm-tg-quality-options',
-    LOGIC_STORAGE_KEY: 'dmm-tg-logic-mode'
+    CONTAINER_SELECTOR: '.mb-2', // CSS selector for button container
+    RELEVANT_PAGE_RX: /debridmediamanager\.com\/(movie|show)\/[^\/]+/, // Pages where buttons should appear
+    MAX_RETRIES: 20, // Max attempts to find container on SPA pages
+    CSS_CLASS_PREFIX: 'dmm-tg', // Prefix for all CSS classes to avoid conflicts
+    STORAGE_KEY: 'dmm-tg-quality-options', // Local storage key for selected quality options
+    POLARITY_STORAGE_KEY: 'dmm-tg-quality-polarity', // Storage key for quality polarity (positive/negative)
+    LOGIC_STORAGE_KEY: 'dmm-tg-logic-mode' // Storage key for AND/OR logic mode preference
   };
 
-  // Ensure BUTTON_DATA is a valid array
+  // Ensure BUTTON_DATA is available and valid (loaded from external CDN)
   const BUTTON_DATA = Array.isArray(window?.DMM_BUTTON_DATA) ? window.DMM_BUTTON_DATA : [];
 
   /**
-   * Quality tokens used for building regex patterns
-   * Each token defines search patterns for common video quality indicators
+   * Quality tokens for building regex patterns
+   * Each token represents a quality indicator that can be matched in filenames
+   * Used to generate both positive and negative lookaheads in AND mode
    */
   const QUALITY_TOKENS = [
     { key: '720p', name: '720p', values: ['720p'] },
     { key: '1080p', name: '1080p', values: ['1080p'] },
     { key: '4k', name: '4k', values: ['\\b4k\\b', '2160p'] },
     { key: 'dv', name: 'Dolby Vision', values: ['dovi', '\\bdv\\b', 'dolby', 'vision'] },
-    { key: 'x264', name: 'x264', values: ['[xh][\\s._-]?264'] },
-    { key: 'x265', name: 'x265', values: ['[xh][\\s._-]?265', '\\bHEVC\\b'] },
+    { key: 'x264', name: 'x264', values: ['264'] },
+    { key: 'x265', name: 'x265', values: ['265', '\\bHEVC\\b'] },
     { key: 'hdr', name: 'HDR', values: ['hdr'] },
     { key: 'remux', name: 'Remux', values: ['remux'] },
     { key: 'atmos', name: 'Atmos', values: ['atmos'] }
   ];
 
-  // DOM utility functions
+  // DOM utility functions for concise element selection and manipulation
   const qs = (sel, root = document) => root.querySelector(sel);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
   const isVisible = (el) => !!(el && el.offsetParent !== null && getComputedStyle(el).visibility !== 'hidden');
 
   /**
-   * Gets the native value setter for React compatibility
-   * React overrides input.value, so we need the original setter
+   * Gets the native value property setter for React input compatibility
+   * React overrides the default input.value setter, so we need the original
+   * @param {HTMLInputElement|HTMLTextAreaElement} el - Input element
+   * @returns {Function} Native setter function or null if not found
    */
   const getNativeValueSetter = (el) => {
     const proto = el instanceof HTMLInputElement ? HTMLInputElement.prototype : HTMLTextAreaElement.prototype;
@@ -65,8 +73,10 @@
   };
 
   /**
-   * Sets input value in a way that triggers React re-renders
-   * This ensures the framework sees the value change and updates accordingly
+   * Sets input value in a React-compatible way that triggers re-renders
+   * Uses native setter and dispatches events to ensure React sees the change
+   * @param {HTMLInputElement|HTMLTextAreaElement} el - Target input element
+   * @param {string} value - Value to set
    */
   const setInputValueReactive = (el, value) => {
     const nativeSetter = getNativeValueSetter(el);
@@ -95,19 +105,29 @@
   };
 
   /**
-   * Removes quality-related patterns from regex to get the base pattern
-   * This prevents accumulation of quality patterns when switching between options
+   * Removes quality-related regex patterns from a base pattern
+   * Handles both AND mode lookaheads (^.*(?=.*quality)) and OR mode alternations (|quality)
+   * @param {string} regex - Input regex pattern to clean
+   * @returns {string} Cleaned regex with quality patterns removed
    */
   const removeQualityFromRegex = (regex) => {
     if (!regex || typeof regex !== 'string') return '';
 
     let cleaned = regex;
 
-    // Remove OR patterns at end
-    cleaned = cleaned.replace(/\s*\([^)]+\)$/, '');
+    // Remove AND patterns: lookaheads at the beginning (after ^)
+    const andMatch = cleaned.match(/\^(\(\?[\=!].*?\))+\.\*/);
+    if (andMatch && andMatch.index === 0) {
+      cleaned = cleaned.replace(andMatch[0], '');
+    }
 
-    // Remove AND lookahead patterns
-    cleaned = cleaned.replace(/\s*\(\?\=\.\*((?:\([^)]*\)|[^)])*)\)/g, '');
+    // Remove OR patterns: alternations at the end
+    cleaned = cleaned.replace(/\|\([^)]+\)$/, '');
+
+    // If the remaining string is just a quality pattern, clear it
+    if (cleaned.match(/^\([^)]+\)$/) || cleaned.match(/^\(\?[\=!].*?\)$/)) {
+      cleaned = '';
+    }
 
     return cleaned.trim();
   };
@@ -116,9 +136,10 @@
    * Builds quality regex string based on selected options and logic mode
    * @param {string[]} selectedOptions - Array of selected quality token keys
    * @param {boolean} useAndLogic - Whether to use AND logic (true) or OR logic (false)
+   * @param {Map} qualityPolarity - Map of quality key to polarity (true=positive, false=negative)
    * @returns {string} Constructed regex pattern
    */
-  const buildQualityString = (selectedOptions, useAndLogic = false) => {
+  const buildQualityString = (selectedOptions, useAndLogic = false, qualityPolarity = new Map()) => {
     if (!selectedOptions.length) return '';
 
     // Gather all regex values for selected quality tokens
@@ -131,13 +152,17 @@
     if (!tokenValues.length) return '';
 
     if (useAndLogic) {
-      // AND logic: Each token must be present, use positive lookaheads
-      const lookaheads = tokenValues.map(vals => {
+      // AND logic: Each token uses positive or negative lookaheads based on polarity
+      const lookaheads = selectedOptions.map((optionKey, index) => {
+        const vals = tokenValues[index];
+        const isPositive = qualityPolarity.get(optionKey) !== false; // default to positive
+        const lookaheadType = isPositive ? '=' : '!';
+
         if (vals.length === 1) {
-          return `(?=.*${vals[0]})`;
+          return `(?${lookaheadType}.*${vals[0]})`;
         }
         // Multiple values for one token = internal OR with non-capturing group
-        return `(?=.*(?:${vals.join('|')}))`;
+        return `(?${lookaheadType}.*(?:${vals.join('|')}))`;
       }).join('');
       return lookaheads;
     } else {
@@ -169,11 +194,14 @@
       .${p}-quality-item{display:inline-flex;align-items:center;font-size:12px;}
       .${p}-quality-button{padding:.25rem .5rem;border-radius:.375rem;border:1px solid rgba(148,163,184,.15);background:transparent;color:#e6f0ff;cursor:pointer;font-size:12px;line-height:1}
       .${p}-quality-button.active{background:#3b82f6;color:#fff;border-color:#3b82f6}
+      .${p}-quality-button.active.negative{background:#dc2626;color:#fff;border-color:#dc2626}
       .${p}-quality-button:focus{outline:1px solid rgba(59,130,246,.5);}
       .${p}-quality-label{color:#e6f0ff;cursor:pointer;white-space:nowrap;}
-      .${p}-logic-selector{margin-right:.75rem;padding-right:.75rem;border-right:1px solid rgba(148,163,184,.15);}
+      .${p}-logic-selector{margin-right:.75rem;padding-right:.75rem;border-right:1px solid rgba(148,163,184,.15);display:flex;align-items:center;}
       .${p}-logic-select{background:#1f2937;color:#e6f0ff;border:1px solid rgba(148,163,184,.4);border-radius:4px;padding:.2rem .4rem;font-size:11px;cursor:pointer;}
       .${p}-logic-select:focus{outline:1px solid rgba(59,130,246,.5);}
+      .${p}-help-icon{background:#1f2937;color:#e6f0ff;border:1px solid rgba(148,163,184,.4);border-radius:50%;width:16px;height:16px;font-size:11px;cursor:help;margin-left:.25rem;display:inline-flex;align-items:center;justify-content:center;font-weight:bold;}
+      .${p}-help-icon:hover{background:#374151;}
       h2.line-clamp-2{display:block!important;-webkit-line-clamp:unset!important;-webkit-box-orient:unset!important;overflow:visible!important;text-overflow:unset!important;white-space:normal!important;} //untruncates titles so they are easier to read
     `;
     const style = document.createElement('style');
@@ -188,12 +216,18 @@
   class QualityManager {
     constructor() {
       this.selectedOptions = [];
+      this.qualityPolarity = new Map();
       this.useAndLogic = false;
       this.container = null;
       this.buttons = new Map();
       this.logicSelect = null;
     }
 
+    /**
+     * Initializes the quality manager with a container element
+     * Loads persisted settings and creates the UI
+     * @param {HTMLElement} container - Container element for the quality UI
+     */
     async initialize(container) {
       this.container = container;
       this.createQualitySection();
@@ -206,16 +240,25 @@
       }
     }
 
+    /**
+     * Loads user preferences from Greasemonkey storage
+     * Handles migration from older storage formats and error recovery
+     */
     async loadPersistedSettings() {
       try {
         const stored = await GMC.getValue(CONFIG.STORAGE_KEY, null);
         this.selectedOptions = stored ? JSON.parse(stored) : [];
+
+        const polarityStored = await GMC.getValue(CONFIG.POLARITY_STORAGE_KEY, null);
+        const polarityData = polarityStored ? JSON.parse(polarityStored) : {};
+        this.qualityPolarity = new Map(Object.entries(polarityData));
 
         const logicStored = await GMC.getValue(CONFIG.LOGIC_STORAGE_KEY, null);
         this.useAndLogic = logicStored ? JSON.parse(logicStored) : false;
       } catch (err) {
         logger.error('dmm-tg: failed to load quality options', err);
         this.selectedOptions = [];
+        this.qualityPolarity = new Map();
         this.useAndLogic = false;
       }
     }
@@ -245,7 +288,15 @@
       `;
       logicSelect.addEventListener('change', (e) => this.onLogicChange(e.target.value === 'and'));
 
+      // Add help icon
+      const helpIcon = document.createElement('button');
+      helpIcon.type = 'button';
+      helpIcon.className = `${CONFIG.CSS_CLASS_PREFIX}-help-icon`;
+      helpIcon.textContent = '?';
+      helpIcon.title = `Logic Modes:\n\nOR Mode: Match ANY selected quality\nExample: (720p|1080p) - matches files with 720p OR 1080p\n\nAND Mode: Match ALL selected qualities (advanced filtering)\n- Requires EVERY selected quality to be present in the filename\n- Useful for precise filtering, e.g., only 1080p remux files\nExample: (?=.*1080p)(?=.*remux) - matches files with BOTH 1080p AND remux\n\nNegative Matching in AND Mode:\n- Click a quality button twice to exclude it\n- Creates a negative lookahead: (?!.*quality)\nExample: (?=.*1080p)(?!.*720p) - requires 1080p but excludes 720p\n\nTip: AND mode is powerful for complex filters but may match fewer files`;
+
       logicSelector.appendChild(logicSelect);
+      logicSelector.appendChild(helpIcon);
       this.logicSelect = logicSelect;
 
       // Quality token buttons
@@ -280,7 +331,16 @@
     restoreStates() {
       this.selectedOptions.forEach((key) => {
         const btn = this.buttons.get(key);
-        if (btn) btn.classList.add(`${CONFIG.CSS_CLASS_PREFIX}-quality-button`), btn.classList.add('active');
+        if (btn) {
+          btn.classList.add('active');
+          // Only show negative styling in AND mode
+          if (this.useAndLogic) {
+            const isPositive = this.qualityPolarity.get(key) !== false; // default to positive
+            if (!isPositive) {
+              btn.classList.add('negative');
+            }
+          }
+        }
       });
 
       if (this.logicSelect) {
@@ -289,7 +349,30 @@
     }
 
     onLogicChange(useAndLogic) {
+      // Clean existing patterns before switching modes
+      const target = this.findTargetInput();
+      if (target) {
+        const currentValue = target.value || '';
+        const cleanedValue = removeQualityFromRegex(currentValue);
+        setInputValueReactive(target, cleanedValue);
+      }
+
       this.useAndLogic = useAndLogic;
+
+      // Update button visual states based on new mode
+      this.selectedOptions.forEach((key) => {
+        const btn = this.buttons.get(key);
+        if (btn) {
+          if (useAndLogic) {
+            const isPositive = this.qualityPolarity.get(key) !== false;
+            if (!isPositive) {
+              btn.classList.add('negative');
+            }
+          } else {
+            btn.classList.remove('negative');
+          }
+        }
+      });
 
       try {
         GMC.setValue(CONFIG.LOGIC_STORAGE_KEY, JSON.stringify(this.useAndLogic));
@@ -302,20 +385,47 @@
 
     /**
      * Toggle option handler for button UI
+     * Implements different behavior based on current logic mode:
+     * OR mode: off -> on -> off
+     * AND mode: off -> positive -> negative -> off
+     * @param {string} key - Quality token key
+     * @param {HTMLElement} btn - Button element that was clicked
      */
     onToggleOption(key, btn) {
       const isActive = btn.classList.contains('active');
-      if (isActive) {
-        btn.classList.remove('active');
-        const idx = this.selectedOptions.indexOf(key);
-        if (idx > -1) this.selectedOptions.splice(idx, 1);
-      } else {
+      const isNegative = btn.classList.contains('negative');
+
+      if (!isActive && !isNegative) {
+        // Currently off -> positive (or just on in OR mode)
         btn.classList.add('active');
         if (!this.selectedOptions.includes(key)) this.selectedOptions.push(key);
+        // Only set polarity in AND mode
+        if (this.useAndLogic) {
+          this.qualityPolarity.set(key, true); // positive
+        }
+      } else if (isActive && !isNegative) {
+        if (this.useAndLogic) {
+          // Currently positive -> negative (only in AND mode)
+          btn.classList.add('negative');
+          this.qualityPolarity.set(key, false); // negative
+        } else {
+          // Currently on -> off (in OR mode)
+          btn.classList.remove('active');
+          const idx = this.selectedOptions.indexOf(key);
+          if (idx > -1) this.selectedOptions.splice(idx, 1);
+        }
+      } else {
+        // Currently negative -> off (only possible in AND mode)
+        btn.classList.remove('active');
+        btn.classList.remove('negative');
+        const idx = this.selectedOptions.indexOf(key);
+        if (idx > -1) this.selectedOptions.splice(idx, 1);
+        this.qualityPolarity.delete(key);
       }
 
       try {
         GMC.setValue(CONFIG.STORAGE_KEY, JSON.stringify(this.selectedOptions));
+        GMC.setValue(CONFIG.POLARITY_STORAGE_KEY, JSON.stringify(Object.fromEntries(this.qualityPolarity)));
       } catch (err) {
         logger.error('dmm-tg: failed to save quality options', err);
       }
@@ -325,21 +435,32 @@
 
     /**
      * Updates the input field with current quality options
-     * Prevents regex pattern duplication by cleaning the base pattern first
+     * Appends or prepends quality regex based on logic mode, cleans when turning off
+     * AND mode: Prepends ^(?=.*quality).* to require all qualities
+     * OR mode: Appends |quality to allow any quality
      */
     updateInputWithQualityOptions() {
       const target = this.findTargetInput();
       if (!target) return;
 
       const currentValue = target.value || '';
-      // Clean existing quality patterns to prevent duplication
-      const baseRegex = removeQualityFromRegex(currentValue);
-      const qualityString = buildQualityString(this.selectedOptions, this.useAndLogic);
+      const qualityString = buildQualityString(this.selectedOptions, this.useAndLogic, this.qualityPolarity);
 
-      // Construct new value with proper spacing
-      const newValue = baseRegex + (qualityString ? (baseRegex ? ' ' : '') + qualityString : '');
+      let newValue;
+      if (qualityString) {
+        // Clean existing quality patterns first to prevent duplication
+        const cleanedBase = removeQualityFromRegex(currentValue);
+        if (this.useAndLogic) {
+          newValue = cleanedBase ? `^${qualityString}.*${cleanedBase}` : `^${qualityString}.*`;
+        } else {
+          newValue = cleanedBase ? `${cleanedBase}|${qualityString}` : qualityString;
+        }
+      } else {
+        // No quality options selected, clean any existing quality patterns
+        newValue = removeQualityFromRegex(currentValue);
+      }
 
-      setInputValueReactive(target, newValue.trim());
+      setInputValueReactive(target, newValue);
     }
 
     /**
@@ -347,9 +468,16 @@
      * Used when selecting patterns from dropdown buttons
      */
     applyQualityOptionsToValue(baseValue) {
-      const qualityString = buildQualityString(this.selectedOptions, this.useAndLogic);
-      const cleanBase = baseValue || '';
-      return cleanBase + (qualityString ? (cleanBase ? ' ' : '') + qualityString : '');
+      const qualityString = buildQualityString(this.selectedOptions, this.useAndLogic, this.qualityPolarity);
+      if (!qualityString) return baseValue;
+
+      const cleanedBase = removeQualityFromRegex(baseValue);
+
+      if (this.useAndLogic) {
+        return cleanedBase ? `^${qualityString}.*${cleanedBase}` : `^${qualityString}.*`;
+      } else {
+        return cleanedBase ? `${cleanedBase}|${qualityString}` : qualityString;
+      }
     }
 
     /**
@@ -375,6 +503,7 @@
 
     cleanup() {
       this.buttons.clear();
+      this.qualityPolarity.clear();
       const existing = this.container?.querySelector(`.${CONFIG.CSS_CLASS_PREFIX}-quality-section`);
       if (existing) existing.remove();
     }
@@ -383,6 +512,7 @@
   /**
    * Manages dropdown buttons and their menus
    * Handles button creation, menu positioning, and pattern selection
+   * Coordinates with QualityManager for combined regex generation
    */
   class ButtonManager {
     constructor() {
@@ -560,6 +690,8 @@
     /**
      * Handles pattern selection from dropdown menus
      * Applies base pattern with quality options and sets input value
+     * @param {string} value - The regex pattern from the selected menu item
+     * @param {string} name - The display name of the selected pattern
      */
     onSelectPattern(value, name) {
       let target = this.findTargetInput();
@@ -604,6 +736,7 @@
   /**
    * Manages SPA navigation detection and DOM change monitoring
    * Handles initialization and cleanup when navigating between pages
+   * Uses mutation observers and history API hooks for reliable detection
    */
   class PageManager {
     constructor() {
@@ -620,6 +753,8 @@
 
     /**
      * Hooks into browser history API to detect SPA navigation
+     * Overrides pushState and replaceState to emit custom navigation events
+     * This ensures the userscript responds to client-side routing changes
      */
     setupHistoryHooks() {
       const push = history.pushState;
@@ -666,6 +801,7 @@
     /**
      * Checks current page and initializes buttons if on relevant page
      * Uses retry mechanism for SPA pages that load content asynchronously
+     * Only activates on movie/show detail pages in DMM
      */
     async checkPage() {
       const url = location.href;
@@ -697,6 +833,8 @@
 
   /**
    * Initialize when DOM is ready
+   * Creates the PageManager instance which handles all userscript functionality
+   * Only initializes if BUTTON_DATA is available (loaded from CDN)
    */
   function ready(fn) {
     if (document.readyState !== 'loading') fn();

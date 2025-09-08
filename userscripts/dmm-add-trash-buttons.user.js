@@ -1,6 +1,6 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.4.0
+// @version       2.4.1
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
@@ -55,6 +55,9 @@
     { key: 'atmos', name: 'Atmos', values: ['atmos'] }
   ];
 
+  // Flatten all quality values for pattern matching
+  const allQualityValues = QUALITY_TOKENS.flatMap(token => token.values);
+
   // DOM utility functions for concise element selection and manipulation
   const qs = (sel, root = document) => root.querySelector(sel);
   const qsa = (sel, root = document) => Array.from(root.querySelectorAll(sel));
@@ -107,6 +110,7 @@
   /**
    * Removes quality-related regex patterns from a base pattern
    * Handles both AND mode lookaheads (^.*(?=.*quality)) and OR mode alternations (|quality)
+   * Only removes patterns that contain known quality values to preserve user input
    * @param {string} regex - Input regex pattern to clean
    * @returns {string} Cleaned regex with quality patterns removed
    */
@@ -118,15 +122,29 @@
     // Remove AND patterns: lookaheads at the beginning (after ^)
     const andMatch = cleaned.match(/\^(\(\?[\=!].*?\))+\.\*/);
     if (andMatch && andMatch.index === 0) {
-      cleaned = cleaned.replace(andMatch[0], '');
+      const matched = andMatch[0];
+      const hasQuality = allQualityValues.some(q => matched.includes(q));
+      if (hasQuality) {
+        cleaned = cleaned.replace(matched, '');
+      }
     }
 
     // Remove OR patterns: alternations at the end
-    cleaned = cleaned.replace(/\|\([^)]+\)$/, '');
+    const orMatch = cleaned.match(/\|\([^)]+\)$/);
+    if (orMatch) {
+      const matched = orMatch[0];
+      const hasQuality = allQualityValues.some(q => matched.includes(q));
+      if (hasQuality) {
+        cleaned = cleaned.replace(matched, '');
+      }
+    }
 
     // If the remaining string is just a quality pattern, clear it
     if (cleaned.match(/^\([^)]+\)$/) || cleaned.match(/^\(\?[\=!].*?\)$/)) {
-      cleaned = '';
+      const hasQuality = allQualityValues.some(q => cleaned.includes(q));
+      if (hasQuality) {
+        cleaned = '';
+      }
     }
 
     return cleaned.trim();

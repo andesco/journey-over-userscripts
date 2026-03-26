@@ -1,19 +1,19 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       2.4.2
+// @version       2.4.3
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
 // @match         *://debridmediamanager.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/dmm/button-data.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@2ade7f70b6a59d043234657dcebfbe5501961127/libs/dmm/button-data.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@2ade7f70b6a59d043234657dcebfbe5501961127/libs/gm/gmcompat.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@2ade7f70b6a59d043234657dcebfbe5501961127/libs/utils/utils.min.js
 // @grant         GM.getValue
 // @grant         GM.setValue
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com
-// @homepageURL   https://github.com/StylusThemes/Userscripts
-// @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
-// @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
+// @homepageURL   https://github.com/andesco/journey-over-userscripts
+// @downloadURL   https://github.com/andesco/journey-over-userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
+// @updateURL     https://github.com/andesco/journey-over-userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
 // ==/UserScript==
 
 (function() {

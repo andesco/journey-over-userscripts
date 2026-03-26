@@ -23,8 +23,39 @@ jobs:
       - name: Run update script
         run: node scripts/update-dmm-with-trash-guides.js
 
-      - name: Commit and push changes
-        uses: stefanzweifel/git-auto-commit-action@v5
-        with:
-          commit_message: "chore: update DMM button data from TRaSH Guides"
-          file_pattern: "libs/dmm/button-data.js"
+      - name: Check for changes in button-data.js
+        id: check_changes
+        run: |
+          if git diff --quiet libs/dmm/button-data.js; then
+            echo "changed=false" >> $GITHUB_OUTPUT
+          else
+            echo "changed=true" >> $GITHUB_OUTPUT
+          fi
+
+      - name: Commit button-data.js changes
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add libs/dmm/button-data.js
+          git commit -m "chore: update DMM button data from TRaSH Guides"
+          git push
+
+      - name: Update userscript with new commit hash
+        if: steps.check_changes.outputs.changed == 'true'
+        run: |
+          # Get the latest commit hash
+          NEW_COMMIT=$(git rev-parse HEAD)
+          
+          # Update the @require line in the userscript with the new commit hash
+          sed -i "s|@require.*button-data\.min\.js|@require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@${NEW_COMMIT}/libs/dmm/button-data.min.js|g" userscripts/dmm-add-trash-buttons.user.js
+          
+          # Bump the version number (patch version)
+          sed -i -E 's/(@version\s+)([0-9]+\.[0-9]+\.)([0-9]+)/echo "\1\2$((\3+1))"/e' userscripts/dmm-add-trash-buttons.user.js
+          
+          # Commit the userscript update
+          git add userscripts/dmm-add-trash-buttons.user.js
+          git commit -m "chore: update userscript to reference latest button-data.js
+
+Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+          git push

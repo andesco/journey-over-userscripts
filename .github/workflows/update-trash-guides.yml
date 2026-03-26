@@ -43,12 +43,14 @@ jobs:
 
       - name: Update userscript with new commit hash
         if: steps.check_changes.outputs.changed == 'true'
+        env:
+          REPO_FULL: ${{ github.repository }}
         run: |
           # Get the latest commit hash
           NEW_COMMIT=$(git rev-parse HEAD)
           
-          # Update the @require line in the userscript with the new commit hash
-          sed -i "s|@require.*button-data\.min\.js|@require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@${NEW_COMMIT}/libs/dmm/button-data.min.js|g" userscripts/dmm-add-trash-buttons.user.js
+          # Update the @require line in the userscript with the new commit hash (dynamic repo)
+          sed -i "s|@require.*button-data\.min\.js|@require       https://cdn.jsdelivr.net/gh/${REPO_FULL}@${NEW_COMMIT}/libs/dmm/button-data.min.js|g" userscripts/dmm-add-trash-buttons.user.js
           
           # Bump the version number (patch version)
           sed -i -E 's/(@version\s+)([0-9]+\.[0-9]+\.)([0-9]+)/echo "\1\2$((\3+1))"/e' userscripts/dmm-add-trash-buttons.user.js

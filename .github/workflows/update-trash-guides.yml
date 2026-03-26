@@ -57,7 +57,6 @@ jobs:
           
           # Commit the userscript update
           git add userscripts/dmm-add-trash-buttons.user.js
-          git commit -m "chore: update userscript to reference latest button-data.js
-
-Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
+          git commit -m "chore: update userscript to reference latest button-data.js" \
+            -m "Co-authored-by: Copilot <223556219+Copilot@users.noreply.github.com>"
           git push

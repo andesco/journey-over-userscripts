@@ -1,20 +1,20 @@
 // ==UserScript==
 // @name          DMM - Add Trash Guide Regex Buttons
-// @version       3.3.4
+// @version       3.3.5
 // @description   Adds buttons to Debrid Media Manager for applying Trash Guide regex patterns.
 // @author        Journey Over
 // @license       MIT
 // @match         *://debridmediamanager.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@dc8ecd635120f4174e5cff7173de89555fb69a9b/libs/dmm/button-data.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@0171b6b6f24caea737beafbc2a8dacd220b729d8/libs/utils/utils.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@644b86d55bf5816a4fa2a165bdb011ef7c22dfe1/libs/metadata/armhaglund/armhaglund.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@5f9302ebad37ae0ff9c0493df9cdd3ef4d7262e4/libs/dmm/button-data.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@5f9302ebad37ae0ff9c0493df9cdd3ef4d7262e4/libs/utils/utils.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@5f9302ebad37ae0ff9c0493df9cdd3ef4d7262e4/libs/metadata/armhaglund/armhaglund.min.js
 // @grant         GM_getValue
 // @grant         GM_setValue
 // @grant         GM_xmlhttpRequest
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=debridmediamanager.com
-// @homepageURL   https://github.com/StylusThemes/Userscripts
-// @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
-// @updateURL     https://github.com/StylusThemes/Userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
+// @homepageURL   https://github.com/andesco/journey-over-userscripts
+// @downloadURL   https://github.com/andesco/journey-over-userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
+// @updateURL     https://github.com/andesco/journey-over-userscripts/raw/main/userscripts/dmm-add-trash-buttons.user.js
 // ==/UserScript==
 
 (function() {

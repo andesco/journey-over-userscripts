@@ -1,18 +1,17 @@
 // ==UserScript==
 // @name          YouTube - Resumer
-// @version       2.0.0
+// @version       2.2.3
 // @description   Automatically saves and resumes YouTube videos from where you left off, with playlist, Shorts, and preview handling, plus automatic cleanup.
 // @author        Journey Over
 // @license       MIT
 // @match         *://*.youtube.com/*
 // @match         *://*.youtube-nocookie.com/*
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/gm/gmcompat.min.js
-// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@c185c2777d00a6826a8bf3c43bbcdcfeba5a9566/libs/utils/utils.min.js
-// @grant         GM.setValue
-// @grant         GM.getValue
-// @grant         GM.deleteValue
-// @grant         GM.listValues
-// @grant         GM.addValueChangeListener
+// @require       https://cdn.jsdelivr.net/gh/StylusThemes/Userscripts@0171b6b6f24caea737beafbc2a8dacd220b729d8/libs/utils/utils.min.js
+// @grant         GM_setValue
+// @grant         GM_getValue
+// @grant         GM_deleteValue
+// @grant         GM_listValues
+// @grant         GM_addValueChangeListener
 // @icon          https://www.google.com/s2/favicons?sz=64&domain=youtube.com
 // @homepageURL   https://github.com/StylusThemes/Userscripts
 // @downloadURL   https://github.com/StylusThemes/Userscripts/raw/main/userscripts/youtube-resumer.user.js
@@ -24,105 +23,121 @@
 
   const logger = Logger('YT - Resumer', { debug: false });
 
-  /** CONFIG **/
-  const MIN_SEEK_DIFF = 1.5;
-  const DAYS_REGULAR = 90; // normal videos expire after 90 days
-  const DAYS_SHORTS = 1; // Shorts expire after 1 day
-  const DAYS_PREVIEWS = 10 / (24 * 60); // previews expire after 10 minutes
-  const CLEANUP_INTERVAL = 5 * 60 * 1000; // 5 minutes
+  const MIN_SEEK_DIFFERENCE = 1.5;
+  const DAYS_TO_KEEP_REGULAR = 90;
+  const DAYS_TO_KEEP_SHORTS = 1;
+  const DAYS_TO_KEEP_PREVIEWS = 10 / (24 * 60);
+  const CLEANUP_INTERVAL_MS = 5 * 60 * 1000;
 
-  /** STATE **/
-  let activeCleanup = null;
-  let currentContext = { videoId: null, playlistId: null };
+  let currentAbortController = null;
+  let currentVideoContext = { videoId: null, playlistId: null };
   let lastPlaylistId = null;
 
-  /** UTILS **/
   const isExpired = status => {
     if (!status?.lastUpdated) return true;
-    let days;
+    let daysToKeep;
     switch (status.videoType) {
-      case 'short':
-        days = DAYS_SHORTS;
+      case 'short': {
+        daysToKeep = DAYS_TO_KEEP_SHORTS;
         break;
-      case 'preview':
-        days = DAYS_PREVIEWS;
+      }
+      case 'preview': {
+        daysToKeep = DAYS_TO_KEEP_PREVIEWS;
         break;
-      default:
-        days = DAYS_REGULAR;
+      }
+      default: {
+        daysToKeep = DAYS_TO_KEEP_REGULAR;
+      }
     }
-    return Date.now() - status.lastUpdated > days * 86400 * 1000;
+    return Date.now() - status.lastUpdated > daysToKeep * 86400 * 1000;
   };
 
-  /** STORAGE HELPERS **/
   async function getStorage() {
-    const stored = await GMC.getValue('yt_resumer_storage');
-    return stored || { videos: {}, playlists: {}, meta: {} };
+    const storedData = GM_getValue('yt_resumer_storage');
+    return storedData || { videos: {}, playlists: {}, meta: {} };
   }
 
   async function setStorage(storage) {
-    await GMC.setValue('yt_resumer_storage', storage);
+    GM_setValue('yt_resumer_storage', storage);
   }
 
-  /** VIDEO CONTROL **/
-  async function seekVideo(player, videoEl, time) {
-    if (!player || !videoEl || isNaN(time)) return;
-    if (Math.abs(player.getCurrentTime() - time) > MIN_SEEK_DIFF) {
-      await new Promise(resolve => {
-        const onSeeked = () => {
-          clearTimeout(timeout);
-          videoEl.removeEventListener('seeked', onSeeked);
-          resolve();
-        };
-        const timeout = setTimeout(onSeeked, 1500);
-        videoEl.addEventListener('seeked', onSeeked, { once: true });
-        player.seekTo(time, true, { skipBufferingCheck: window.location.pathname === '/' });
-        logger(`Seeking to ${Math.round(time)}s`);
-      });
+  async function seekVideo(player, videoElement, time) {
+    if (!player || !videoElement || isNaN(time)) return;
+    if (Math.abs(player.getCurrentTime() - time) < MIN_SEEK_DIFFERENCE) return;
+
+    logger.debug('Seeking video', { currentTime: player.getCurrentTime(), targetTime: time });
+
+    const releaseLock = () => {
+      if (videoElement._ytAutoResumeSeekPending) videoElement._ytAutoResumeSeekPending = false;
+      clearTimeout(seekTimeout);
+      for (const event of ['seeked', 'abort', 'emptied', 'error']) {
+        videoElement.removeEventListener(event, releaseLock);
+      }
+    };
+
+    // If the browser is busy seeking, wait for it to finish then try again
+    if (videoElement.seeking && !videoElement._ytAutoResumeSeekPending) {
+      const retrySeek = () => {
+        setTimeout(() => seekVideo(player, videoElement, time), 0);
+      };
+      videoElement.addEventListener('seeked', retrySeek, { once: true });
+      return;
     }
+
+    for (const event of ['seeked', 'abort', 'emptied', 'error']) {
+      videoElement.addEventListener(event, releaseLock, { once: true });
+    }
+    const seekTimeout = setTimeout(releaseLock, 2000);
+    videoElement._ytAutoResumeSeekPending = true;
+
+    player.seekTo(time, true, { skipBufferingCheck: window.location.pathname === '/' });
   }
 
-  /** PLAYBACK MANAGEMENT **/
-  async function resumePlayback(player, videoId, videoEl, inPlaylist = false, playlistId = '', prevPlaylistId = null) {
+  async function resumePlayback(player, videoId, videoElement, inPlaylist = false, playlistId = '', previousPlaylistId = null) {
     try {
-      const playerSize = player.getPlayerSize();
-      if (playerSize.width === 0 || playerSize.height === 0) return;
+      logger.debug('Attempting to resume playback', { videoId, inPlaylist, playlistId, previousPlaylistId });
 
       const storage = await getStorage();
-      const stored = inPlaylist ? storage.playlists[playlistId] : storage.videos[videoId];
-      if (!stored) return;
+      const storedData = inPlaylist ? storage.playlists[playlistId] : storage.videos[videoId];
+      if (!storedData) return;
 
       let targetVideoId = videoId;
-      let timeToResume = stored.timestamp;
+      let resumeTime = storedData.timestamp;
 
-      if (inPlaylist && stored.videos) {
-        const lastVideo = stored.lastWatchedVideoId;
-        if (playlistId !== prevPlaylistId && lastVideo && videoId !== lastVideo) {
-          targetVideoId = lastVideo;
+      // Handle playlist navigation - resume last watched video if switching playlists
+      if (inPlaylist && storedData.videos) {
+        const lastWatchedVideoId = storedData.lastWatchedVideoId;
+        if (playlistId !== previousPlaylistId && lastWatchedVideoId && videoId !== lastWatchedVideoId) {
+          targetVideoId = lastWatchedVideoId;
         }
-        timeToResume = stored.videos?.[targetVideoId]?.timestamp;
+        resumeTime = storedData.videos?.[targetVideoId]?.timestamp;
       }
 
-      if (timeToResume) {
+      if (resumeTime) {
+        logger('Resuming playback', { videoId: targetVideoId, resumeTime, inPlaylist });
+
         if (inPlaylist && videoId !== targetVideoId) {
-          const playlist = await waitForPlaylist(player);
-          const idx = playlist.indexOf(targetVideoId);
-          if (idx !== -1) player.playVideoAt(idx);
+          const playlistVideos = await waitForPlaylist(player);
+          const videoIndex = playlistVideos.indexOf(targetVideoId);
+          if (videoIndex !== -1) player.playVideoAt(videoIndex);
         } else {
-          await seekVideo(player, videoEl, timeToResume);
+          await seekVideo(player, videoElement, resumeTime);
         }
       }
-    } catch (err) {
-      logger.error('Failed to resume playback', err);
+    } catch (error) {
+      logger.error('Failed to resume playback', error);
     }
   }
 
-  async function updateStatus(player, videoEl, type, playlistId = '') {
+  async function updateStatus(player, videoElement, type, playlistId = '') {
     try {
       const videoId = player.getVideoData()?.video_id;
       if (!videoId) return;
 
-      const currentTime = videoEl.currentTime;
+      const currentTime = videoElement.currentTime;
       if (isNaN(currentTime) || currentTime === 0) return;
+
+      logger.debug('Updating status', { videoId, currentTime, type, playlistId });
 
       const storage = await getStorage();
       if (playlistId) {
@@ -130,7 +145,7 @@
         storage.playlists[playlistId].videos[videoId] = {
           timestamp: currentTime,
           lastUpdated: Date.now(),
-          videoType: 'playlist'
+          videoType: type
         };
         storage.playlists[playlistId].lastWatchedVideoId = videoId;
       } else {
@@ -142,166 +157,262 @@
       }
 
       await setStorage(storage);
-    } catch (err) {
-      logger.error('Failed to update playback status', err);
+    } catch (error) {
+      logger.error('Failed to update playback status', error);
     }
   }
 
-  /** VIDEO PROCESSING **/
-  async function handleVideo(playerContainer, player, videoEl, skipResume = false) {
-    if (activeCleanup) activeCleanup();
+  async function handleVideo(playerContainer, player, videoElement, skipResume = false) {
+    logger.debug('Handling video load', { videoId: player.getVideoData()?.video_id, skipResume });
 
-    const urlParams = new URLSearchParams(window.location.search);
-    const videoId = urlParams.get('v') || player.getVideoData()?.video_id;
+    // Cancel any existing listeners from the previous video
+    if (currentAbortController) currentAbortController.abort();
+    currentVideoContext = { videoId: null, playlistId: null };
+    currentAbortController = new AbortController();
+    const signal = currentAbortController.signal;
+
+    const urlSearchParameters = new URLSearchParams(window.location.search);
+    const videoId = urlSearchParameters.get('v') || player.getVideoData()?.video_id;
     if (!videoId) return;
 
-    const playlistId = urlParams.get('list');
-    currentContext = { videoId, playlistId };
+    // Exclude "Watch Later" playlist (WL) from playlist tracking
+    const playlistId = ((rawPlaylistId) => (rawPlaylistId !== 'WL' ? rawPlaylistId : null))(urlSearchParameters.get('list'));
+    currentVideoContext = { videoId, playlistId };
 
-    const isLive = player.getVideoData()?.isLive;
-    const isPreview = playerContainer.id === 'inline-player';
-    const timeSpecified = urlParams.has('t');
+    const isLiveStream = player.getVideoData()?.isLive;
+    const isPreviewVideo = playerContainer.id === 'inline-player';
+    const hasTimeParameter = urlSearchParameters.has('t');
 
-    if (isLive || timeSpecified) {
+    // Don't resume live streams or videos with explicit timestamps
+    if (isLiveStream || hasTimeParameter) {
       lastPlaylistId = playlistId;
       return;
     }
 
-    const videoType = window.location.pathname.startsWith('/shorts/') ? 'short' : isPreview ? 'preview' : 'regular';
-    let resumed = false;
+    const videoType = window.location.pathname.startsWith('/shorts/') ? 'short' : isPreviewVideo ? 'preview' : 'regular';
+    let hasResumed = false;
+    let isResuming = false;
+    let lastSaveTime = Date.now();
 
     const onTimeUpdate = () => {
-      if (!resumed && !skipResume) {
-        resumed = true;
-        resumePlayback(player, videoId, videoEl, !!playlistId, playlistId, lastPlaylistId);
-      } else {
-        updateStatus(player, videoEl, videoType, playlistId);
+      const isAdShowing = playerContainer.classList.contains('ad-showing') || playerContainer.classList.contains('ad-interrupting');
+
+      // Do not save progress while an ad is playing, while waiting for the resume jump, or while seeking natively!
+      if (isAdShowing || isResuming || videoElement._ytAutoResumeSeekPending) return;
+
+      if (!hasResumed && skipResume) {
+        hasResumed = true;
+      } else if (!hasResumed) {
+        isResuming = true;
+
+        // Wait for the async resume process to completely finish before unlocking
+        resumePlayback(player, videoId, videoElement, !!playlistId, playlistId, lastPlaylistId).then(() => {
+          hasResumed = true;
+          isResuming = false;
+          lastSaveTime = Date.now();
+        });
+      } else if (hasResumed) {
+        const now = Date.now();
+        if (now - lastSaveTime > 1000) {
+          updateStatus(player, videoElement, videoType, playlistId);
+          lastSaveTime = now;
+        }
       }
     };
 
-    const onRemoteUpdate = async (event) => {
-      logger(`Remote update received`);
-      await seekVideo(player, videoEl, event.detail.time);
+    const onRemoteUpdate = async (event_) => {
+      logger.debug('Remote update received', { time: event_.detail.time });
+      await seekVideo(player, videoElement, event_.detail.time);
     };
 
-    videoEl.addEventListener('timeupdate', onTimeUpdate, true);
-    window.addEventListener('yt-resumer-remote-update', onRemoteUpdate, true);
-
-    activeCleanup = () => {
-      videoEl.removeEventListener('timeupdate', onTimeUpdate, true);
-      window.removeEventListener('yt-resumer-remote-update', onRemoteUpdate, true);
-      currentContext = { videoId: null, playlistId: null };
-    };
+    videoElement.addEventListener('timeupdate', onTimeUpdate, { signal });
+    window.addEventListener('yt-resumer-remote-update', onRemoteUpdate, { signal });
 
     lastPlaylistId = playlistId;
   }
 
-  /** PLAYLIST HANDLER **/
   function waitForPlaylist(player) {
-    return new Promise((resolve, reject) => {
-      const existing = player.getPlaylist();
-      if (existing?.length) return resolve(existing);
+    logger.debug('Waiting for playlist data');
 
+    return new Promise((resolve, reject) => {
+      const existingPlaylist = player.getPlaylist();
+      if (existingPlaylist?.length) {
+        logger.debug('Playlist already available', { length: existingPlaylist.length });
+        return resolve(existingPlaylist);
+      }
+
+      let hasResolved = false;
+      let checkInterval = null;
+
+      const cleanup = () => {
+        document.removeEventListener('yt-playlist-data-updated', checkPlaylist);
+        if (checkInterval) clearInterval(checkInterval);
+      };
+
+      const checkPlaylist = () => {
+        if (hasResolved) return;
+        const playlist = player.getPlaylist();
+        if (playlist?.length) {
+          logger.debug('Playlist data received', { length: playlist.length });
+          hasResolved = true;
+          cleanup();
+          resolve(playlist);
+        }
+      };
+
+      // Listen for YouTube's native event
+      document.addEventListener('yt-playlist-data-updated', checkPlaylist, { once: true });
+
+      // Fallback polling just in case the event fired before we started listening
       let attempts = 0;
-      const interval = setInterval(() => {
-        const list = player.getPlaylist();
-        if (list?.length) {
-          clearInterval(interval);
-          resolve(list);
-        } else if (++attempts > 50) {
-          clearInterval(interval);
-          reject('Playlist not found');
+      checkInterval = setInterval(() => {
+        checkPlaylist();
+        if (!hasResolved && ++attempts > 50) {
+          hasResolved = true;
+          cleanup();
+          reject(new Error('Playlist not found'));
         }
       }, 100);
     });
   }
 
-  /** STORAGE EVENTS **/
-  function onStorageChange(key, newValue, remote) {
-    if (!remote || !newValue) return;
-    // Broadcast update to video if it's current
-    let time;
-    if (key === currentContext.playlistId && newValue.videos) {
-      time = newValue.videos[currentContext.videoId]?.timestamp;
-    } else if (key === currentContext.videoId) {
-      time = newValue.timestamp;
+  function onStorageChange(storageKey, oldStorageValue, newStorageValue, isRemoteChange) {
+    if (!isRemoteChange || !newStorageValue) return;
+
+    logger.debug('Storage change detected', { storageKey, isRemoteChange });
+    // Sync playback position across tabs for current video
+    let resumeTime;
+    if (currentVideoContext.playlistId && newStorageValue.playlists?.[currentVideoContext.playlistId]?.videos) {
+      resumeTime = newStorageValue.playlists[currentVideoContext.playlistId].videos[currentVideoContext.videoId]?.timestamp;
+    } else if (currentVideoContext.videoId && newStorageValue.videos?.[currentVideoContext.videoId]) {
+      resumeTime = newStorageValue.videos[currentVideoContext.videoId].timestamp;
     }
-    if (time) {
-      window.dispatchEvent(new CustomEvent('yt-resumer-remote-update', { detail: { time } }));
+    if (resumeTime) {
+      window.dispatchEvent(new CustomEvent('yt-resumer-remote-update', { detail: { time: resumeTime } }));
     }
   }
 
-  /** CLEANUP **/
   async function cleanupOldData() {
     try {
+      logger.debug('Starting cleanup of old data');
+
       const storage = await getStorage();
-      for (const vid in storage.videos) {
-        if (isExpired(storage.videos[vid])) delete storage.videos[vid];
-      }
-      for (const pl in storage.playlists) {
-        let changed = false;
-        const playlist = storage.playlists[pl];
-        for (const vid in playlist.videos) {
-          if (isExpired(playlist.videos[vid])) {
-            delete playlist.videos[vid];
-            changed = true;
-          }
+      const videoCleanup = async () => {
+        for (const videoId in storage.videos) {
+          if (isExpired(storage.videos[videoId])) delete storage.videos[videoId];
         }
-        if (Object.keys(playlist.videos).length === 0) delete storage.playlists[pl];
-        else if (changed) storage.playlists[pl] = playlist;
-      }
+      };
+      const playlistCleanup = async () => {
+        for (const playlistId in storage.playlists) {
+          let hasChanged = false;
+          const playlist = storage.playlists[playlistId];
+          for (const videoId in playlist.videos) {
+            if (isExpired(playlist.videos[videoId])) {
+              delete playlist.videos[videoId];
+              hasChanged = true;
+            }
+          }
+          if (Object.keys(playlist.videos).length === 0) delete storage.playlists[playlistId];
+          else if (hasChanged) storage.playlists[playlistId] = playlist;
+        }
+      };
+      await Promise.all([videoCleanup(), playlistCleanup()]);
       await setStorage(storage);
-    } catch (err) {
-      logger.error(`Failed to clean up stored playback statuses: ${err}`);
+    } catch (error) {
+      logger.error(`Failed to clean up stored playback statuses: ${error}`);
     }
   }
 
   async function periodicCleanup() {
+    logger.debug('Checking if periodic cleanup is needed');
+
     const storage = await getStorage();
-    const last = storage.meta.lastCleanup || 0;
-    if (Date.now() - last < CLEANUP_INTERVAL) return;
+    const lastCleanupTime = storage.meta.lastCleanup || 0;
+    if (Date.now() - lastCleanupTime < CLEANUP_INTERVAL_MS) return;
     storage.meta.lastCleanup = Date.now();
     await setStorage(storage);
     logger('This tab is handling the scheduled cleanup');
     await cleanupOldData();
   }
 
-  /** INITIALIZATION **/
+  function interceptTimestampLinks() {
+    logger.debug('Setting up timestamp link interception');
+
+    document.documentElement.addEventListener('click', (event) => {
+      if (!(event.target instanceof Element)) return;
+      const anchor = event.target.closest('a');
+      if (!anchor || !anchor.href || !/[?&]t=/.test(anchor.href)) return;
+
+      // Allow native timestamp clicks inside comments and descriptions
+      if (anchor.closest('ytd-comments, ytd-text-inline-expander, #description, #content-text')) return;
+
+      const isNewTabClick = event.button !== 0 || event.ctrlKey || event.metaKey || event.shiftKey;
+      if (isNewTabClick) return;
+
+      try {
+        const url = new URL(anchor.href);
+        if (url.searchParams.has('t')) {
+          logger.debug('Intercepting timestamp link', { originalUrl: anchor.href });
+          url.searchParams.delete('t');
+          const newUrl = url.toString();
+          anchor.href = newUrl;
+
+          event.preventDefault();
+          event.stopImmediatePropagation();
+          history.pushState(null, '', newUrl);
+          window.dispatchEvent(new PopStateEvent('popstate', { state: null }));
+        }
+      } catch (error) {
+        logger('Could not modify link href:', error);
+      }
+    }, true);
+  }
+
   async function init() {
     try {
-      window.addEventListener('pagehide', () => activeCleanup?.(), true);
+      logger('Initializing YouTube Resumer');
+
+      window.addEventListener('pagehide', () => {
+        currentAbortController?.abort();
+        currentVideoContext = { videoId: null, playlistId: null };
+      }, true);
 
       await periodicCleanup();
-      setInterval(periodicCleanup, CLEANUP_INTERVAL);
+      setInterval(periodicCleanup, CLEANUP_INTERVAL_MS);
 
-      GMC.addValueChangeListener(onStorageChange);
+      GM_addValueChangeListener('yt_resumer_storage', onStorageChange);
+
+      interceptTimestampLinks();
 
       logger('This tab is handling the initial load');
       window.addEventListener('pageshow', () => {
         logger('This tab is handling the video load');
         initVideoLoad();
         window.addEventListener('yt-player-updated', onVideoContainerLoad, true);
-        window.addEventListener('yt-autonav-pause-player-ended', () => activeCleanup?.(), true);
+        // window.addEventListener('yt-autonav-pause-player-ended', () => currentAbortController?.abort(), true);
       }, { once: true });
 
-    } catch (err) { logger.error('Initialization failed', err); }
+    } catch (error) { logger.error('Initialization failed', error); }
   }
 
   function initVideoLoad() {
+    logger.debug('Initializing video load');
+
     const player = document.querySelector('#movie_player');
     if (!player) return;
-    const videoEl = player.querySelector('video');
-    if (videoEl) handleVideo(player, player.player_ || player, videoEl);
+    const videoElement = player.querySelector('video');
+    if (videoElement) handleVideo(player, player.player_ || player, videoElement);
   }
 
-  function onVideoContainerLoad(event) {
-    const container = event.target;
-    const player = container?.player_;
-    const videoEl = container?.querySelector('video');
-    if (player && videoEl) handleVideo(container, player, videoEl);
+  function onVideoContainerLoad(event_) {
+    logger.debug('Video container updated');
+
+    const videoContainer = event_.target;
+    const playerInstance = videoContainer?.player_;
+    const videoElement = videoContainer?.querySelector('video');
+    if (playerInstance && videoElement) handleVideo(videoContainer, playerInstance, videoElement);
   }
 
-  /** START **/
   init();
 
 })();

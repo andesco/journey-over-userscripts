@@ -1,0 +1,85 @@
+import globals from 'globals';
+import unicorn from 'eslint-plugin-unicorn';
+import userscripts from 'eslint-plugin-userscripts';
+
+export default [
+  {
+    ignores: [
+      'node_modules/**',
+      '**/*.min.js',
+      '**/package-lock.json',
+      '**/bun.lock',
+      '**/eslint.config.js',
+      '**/update-jsdelivr-hashes.js',
+      '**/build.js',
+    ],
+  },
+  {
+    files: ['**/*.js'],
+    languageOptions: {
+      ecmaVersion: 'latest',
+      sourceType: 'script',
+      globals: {
+        ...globals.browser,
+        ...globals.greasemonkey,
+        ...globals.node,
+        AnimeAPI: 'readonly',
+        ArmHaglund: 'readonly',
+        AniList: 'readonly',
+        Logger: 'readonly',
+        GMC: 'readonly',
+        GM: 'readonly',
+        Wikidata: 'readonly',
+        NodeCreationObserver: 'readonly',
+        $: 'readonly',
+        jQuery: 'readonly',
+        ClipboardJS: 'readonly',
+        debounce: 'readonly',
+        TAG_VIDEO_SELECTORS: 'readonly',
+      },
+    },
+    plugins: {
+      unicorn,
+      userscripts,
+    },
+    rules: {
+      'userscripts/no-invalid-headers': 'error',
+      'userscripts/no-invalid-grant': 'error',
+      'userscripts/compat-grant': 'warn',
+      'userscripts/compat-headers': 'warn',
+      'userscripts/require-version': 'warn',
+      'userscripts/use-homepage-and-url': 'off',
+      'no-var': 'error',
+      'prefer-const': 'warn',
+      'no-shadow': 'warn',
+      'no-global-assign': 'error',
+      'no-unused-vars': [
+        'warn',
+        { vars: 'all', args: 'after-used', ignoreRestSiblings: true },
+      ],
+      'no-undef': 'warn',
+      eqeqeq: ['warn', 'smart'],
+      'no-console': 'warn',
+      'no-trailing-spaces': 'warn',
+      quotes: ['error', 'single', { allowTemplateLiterals: true }],
+      'id-length': ['warn', {
+        'min': 2,
+        'exceptions': ['i', 'j', 'x', 'y', '_', '$'],
+        'properties': 'never'
+      }],
+      'unicorn/no-unused-properties': 'warn',
+      'unicorn/no-array-for-each': 'warn',
+      'unicorn/prefer-ternary': 'warn',
+      'unicorn/catch-error-name': 'warn',
+      'unicorn/prevent-abbreviations': ['warn', { checkFilenames: false }],
+      'unicorn/consistent-function-scoping': 'warn',
+      'unicorn/no-useless-promise-resolve-reject': 'warn',
+      'unicorn/prefer-spread': 'warn',
+      'unicorn/prefer-optional-catch-binding': 'warn',
+      'unicorn/no-static-only-class': 'warn',
+      'unicorn/switch-case-braces': 'warn',
+      'unicorn/prefer-date-now': 'warn',
+      'unicorn/prefer-modern-dom-apis': 'warn',
+    },
+  },
+];

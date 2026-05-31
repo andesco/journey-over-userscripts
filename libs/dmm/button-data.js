@@ -4,11 +4,11 @@ window.DMM_BUTTON_DATA = [
     buttonData: [
       {
         name: "Highest Tier Releases",
-        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|3L|ABBIE|AJP69|APEX|BBQ|BiZKiT|BLURANiUM|BLUTONiUM|BMF|BYNDR|c0kE|CasStudio|Chotab|CiNEPHiLES|CMRG|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|decibeL|DON|EbP|EDPH|FLUX|FraMeSToR|Geek|GNOME|HONE|KiNGS|Kitsune|LolHD|monkee|NCmt|NOSiViD|NTb|NTG|PAXA|PEXA|PiRAMiDHEAD|PmP|PTer|QOQ|RAWR|RTN|SiC|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|VietHD|ViSUM|WiLDCAT|XEPA|ZoroSenpai|ZQ)\\b"
+        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|3L|ABBIE|AJP69|APEX|BBQ|BiZKiT|BLURANiUM|BLUTONiUM|BMF|BYNDR|c0kE|CasStudio|Chotab|CiNEPHiLES|CMRG|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|decibeL|DON|EbP|EDPH|FLUX|FraMeSToR|Geek|GNOME|HONE|KiNGS|Kitsune|LolHD|MADSKY|monkee|NCmt|NOSiViD|NTb|NTG|PAXA|PEXA|PiRAMiDHEAD|PmP|PTer|QOQ|RAWR|RTN|SiC|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|VietHD|ViSUM|WiLDCAT|XEPA|ZoroSenpai|ZQ)\\b"
       },
       {
         name: "All Trash Recommended",
-        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|12GaugeShotgun|3cTWeB|3L|4KBEC|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLOOM|BLURANiUM|BLUTONiUM|BMF|BTW|BYNDR|c0kE|CasStudio|CEBEX|Chotab|Cinefeel|CiNEPHiLES|CiT|CMRG|Coo7|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|dB|decibeL|DEEP|DON|Dooky|DRACULA|EA|EbP|EDPH|END|EPSiLON|ETHiCS|FC|Flights|FLUX|FraMeSToR|Geek|GNOME|GNOMiSSiON|HHWEB|HiDt|HiFi|HiSD|HONE|iFT|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|KRaLiMaRKo|LAZY|LolHD|MiU|monkee|MZABI|NCmt|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|PiRAMiDHEAD|playBD|playWEB|PmP|PSiG|PTer|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiCFoI|SiGMA|SLiGNOME|SMURF|SPiRiT|SURFINBIRD|SwAgLaNdEr|T4H|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|TRiToN|TVSmash|VietHD|ViSiON|ViSUM|WELP|WiLDCAT|XEBEC|XEPA|ZoroSenpai|ZQ)\\b"
+        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|12GaugeShotgun|3cTWeB|3L|4KBEC|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLOOM|BLURANiUM|BLUTONiUM|BMF|BTW|BYNDR|c0kE|CasStudio|CEBEX|Chotab|Cinefeel|CiNEPHiLES|CiT|CMRG|Coo7|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|dB|decibeL|DEEP|DON|Dooky|DRACULA|EA|EbP|EDPH|END|EPSiLON|ETHiCS|FC|Flights|FLUX|FraMeSToR|Geek|GNOME|GNOMiSSiON|HHWEB|HiDt|HiFi|HiSD|HONE|iFT|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|KRaLiMaRKo|LAZY|LolHD|MADSKY|MiU|monkee|MZABI|NCmt|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|PiRAMiDHEAD|playBD|playWEB|PmP|PSiG|PTer|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiCFoI|SiGMA|SLiGNOME|SMURF|SPiRiT|SURFINBIRD|SwAgLaNdEr|T4H|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|TRiToN|TVSmash|VietHD|ViSiON|ViSUM|WELP|WiLDCAT|XEBEC|XEPA|ZoroSenpai|ZQ)\\b"
       },
       {
         name: "Bad Releases",
@@ -16,7 +16,7 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "Not Trash Recommended",
-        value: "^((?!\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|12GaugeShotgun|3cTWeB|3L|4KBEC|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLOOM|BLURANiUM|BLUTONiUM|BMF|BTW|BYNDR|c0kE|CasStudio|CEBEX|Chotab|Cinefeel|CiNEPHiLES|CiT|CMRG|Coo7|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|dB|decibeL|DEEP|DON|Dooky|DRACULA|EA|EbP|EDPH|END|EPSiLON|ETHiCS|FC|Flights|FLUX|FraMeSToR|Geek|GNOME|GNOMiSSiON|HHWEB|HiDt|HiFi|HiSD|HONE|iFT|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|KRaLiMaRKo|LAZY|LolHD|MiU|monkee|MZABI|NCmt|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|PiRAMiDHEAD|playBD|playWEB|PmP|PSiG|PTer|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiCFoI|SiGMA|SLiGNOME|SMURF|SPiRiT|SURFINBIRD|SwAgLaNdEr|T4H|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|TRiToN|TVSmash|VietHD|ViSiON|ViSUM|WELP|WiLDCAT|XEBEC|XEPA|ZoroSenpai|ZQ)\\b).)*$"
+        value: "^((?!\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|12GaugeShotgun|3cTWeB|3L|4KBEC|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLOOM|BLURANiUM|BLUTONiUM|BMF|BTW|BYNDR|c0kE|CasStudio|CEBEX|Chotab|Cinefeel|CiNEPHiLES|CiT|CMRG|Coo7|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|dB|decibeL|DEEP|DON|Dooky|DRACULA|EA|EbP|EDPH|END|EPSiLON|ETHiCS|FC|Flights|FLUX|FraMeSToR|Geek|GNOME|GNOMiSSiON|HHWEB|HiDt|HiFi|HiSD|HONE|iFT|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|KRaLiMaRKo|LAZY|LolHD|MADSKY|MiU|monkee|MZABI|NCmt|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|PiRAMiDHEAD|playBD|playWEB|PmP|PSiG|PTer|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiCFoI|SiGMA|SLiGNOME|SMURF|SPiRiT|SURFINBIRD|SwAgLaNdEr|T4H|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|TRiToN|TVSmash|VietHD|ViSiON|ViSUM|WELP|WiLDCAT|XEBEC|XEPA|ZoroSenpai|ZQ)\\b).)*$"
       }
     ],
   },
@@ -25,7 +25,7 @@ window.DMM_BUTTON_DATA = [
     buttonData: [
       {
         name: "Combined Shows",
-        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|12GaugeShotgun|3cTWeB|4KBEC|ABBiE|AJP69|APEX|BLOOM|BLURANiUM|BLUTONiUM|BMF|BTW|BYNDR|CasStudio|CEBEX|Chotab|Cinefeel|CiT|CMRG|Coo7|CRFW|CtrlHD|dB|decibeL|DEEP|DON|Dooky|DRACULA|EbP|END|EPSiLON|ETHiCS|FC|Flights|FLUX|FraMeSToR|GNOME|HHWEB|HiFi|HONE|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|KRaLiMaRKo|LAZY|MiU|monkee|MZABI|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|playBD|playWEB|PmP|PSiG|PTer|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiCFoI|SIGMA|SLiGNOME|SMURF|SPiRiT|SwAgLaNdEr|T4H|T6D|TEPES|TOMMY|TRiToN|TVSmash|ViSiON|ViSUM|WELP|XEBEC|XEPA)\\b"
+        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|(?<=remux).*\\b(NAN0)\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|\\b(ZR)\\b|-ZR-|12GaugeShotgun|3cTWeB|4KBEC|ABBiE|AJP69|APEX|BLOOM|BLURANiUM|BLUTONiUM|BMF|BTW|BYNDR|CasStudio|CEBEX|Chotab|Cinefeel|CiT|CMRG|Coo7|CRFW|CtrlHD|dB|decibeL|DEEP|DON|Dooky|DRACULA|EbP|END|EPSiLON|ETHiCS|FC|Flights|FLUX|FraMeSToR|GNOME|HHWEB|HiFi|HONE|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|KRaLiMaRKo|LAZY|MADSKY|MiU|monkee|MZABI|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|playBD|playWEB|PmP|PSiG|PTer|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiCFoI|SIGMA|SLiGNOME|SMURF|SPiRiT|SwAgLaNdEr|T4H|T6D|TEPES|TOMMY|TRiToN|TVSmash|ViSiON|ViSUM|WELP|XEBEC|XEPA)\\b"
       },
       {
         name: "Combined Remux Tiers",
@@ -37,7 +37,7 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "Combined WEB Tiers",
-        value: "\\b(-Arid\\b|-sam\\b|-smol\\b|-SoM\\b|\\[Arid\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(FLE)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|3cTWeB|4KBEC|ABBIE|AJP69|APEX|BLOOM|BLUTONiUM|BTW|BYNDR|CasStudio|CEBEX|Chotab|Cinefeel|CiT|CMRG|Coo7|CRFW|CRUD|CtrlHD|dB|DEEP|Dooky|DRACULA|END|ETHiCS|FC|Flights|FLUX|GNOME|GNOMiSSiON|HHWEB|HONE|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|LAZY|MiU|monkee|MZABI|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|playWEB|PSiG|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiGMA|SLiGNOME|SMURF|SPiRiT|SwAgLaNdEr|T4H|T6D|TEPES|TheFarm|TOMMY|TVSmash|ViSiON|ViSUM|WELP|XEBEC|XEPA|ZoroSenpai)\\b"
+        value: "\\b(-Arid\\b|-sam\\b|-smol\\b|-SoM\\b|\\[Arid\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(FLE)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|3cTWeB|4KBEC|ABBIE|AJP69|APEX|BLOOM|BLUTONiUM|BTW|BYNDR|CasStudio|CEBEX|Chotab|Cinefeel|CiT|CMRG|Coo7|CRFW|CRUD|CtrlHD|dB|DEEP|Dooky|DRACULA|END|ETHiCS|FC|Flights|FLUX|GNOME|GNOMiSSiON|HHWEB|HONE|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|LAZY|MADSKY|MiU|monkee|MZABI|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|playWEB|PSiG|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiGMA|SLiGNOME|SMURF|SPiRiT|SwAgLaNdEr|T4H|T6D|TEPES|TheFarm|TOMMY|TVSmash|ViSiON|ViSUM|WELP|XEBEC|XEPA|ZoroSenpai)\\b"
       },
       {
         name: "Remux Tier 01",
@@ -57,7 +57,7 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "WEB Tier 01",
-        value: "\\b(ABBiE|AJP69|APEX|CasStudio|CRFW|CtrlHD|FLUX|HONE|KiNGS|Kitsune|monkee|NOSiViD|NTb|NTG|PAXA|PEXA|QOQ|RAWR|RTN|SiC|T6D|TOMMY|ViSUM|XEPA)\\b"
+        value: "\\b(ABBiE|AJP69|APEX|CasStudio|CRFW|CtrlHD|FLUX|HONE|KiNGS|Kitsune|MADSKY|monkee|NOSiViD|NTb|NTG|PAXA|PEXA|QOQ|RAWR|RTN|SiC|T6D|TOMMY|ViSUM|XEPA)\\b"
       },
       {
         name: "WEB Tier 02",
@@ -74,7 +74,7 @@ window.DMM_BUTTON_DATA = [
     buttonData: [
       {
         name: "Combined Movies",
-        value: "\\b(3L|4KBEC|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLOOM|BLURANiUM|BLUTONiUM|BMF|BYNDR|c0kE|CEBEX|Chotab|CiNEPHiLES|CMRG|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|dB|decibeL|DON|Dooky|EA|EbP|EDPH|Flights|FLUX|FraMeSToR|Geek|GNOME|GNOMiSSiON|HHWEB|HiDt|HiSD|HONE|iFT|KiNGS|Kitsune|LolHD|MiU|monkee|MZABI|NCmt|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|PAXA|PEXA|PHOENiX|PiRAMiDHEAD|playBD|playWEB|PmP|PTer|QOQ|RAWR|ROCCaT|SA89|SbR|SiC|SiCFoI|SiGMA|SLiGNOME|SMURF|SURFINBIRD|SwAgLaNdEr|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|VietHD|WiLDCAT|XEBEC|XEPA|ZoroSenpai|ZQ)\\b"
+        value: "\\b(3L|4KBEC|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLOOM|BLURANiUM|BLUTONiUM|BMF|BYNDR|c0kE|CEBEX|Chotab|CiNEPHiLES|CMRG|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|dB|decibeL|DON|Dooky|EA|EbP|EDPH|Flights|FLUX|FraMeSToR|Geek|GNOME|GNOMiSSiON|HHWEB|HiDt|HiSD|HONE|iFT|KiNGS|Kitsune|LolHD|MADSKY|MiU|monkee|MZABI|NCmt|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|PAXA|PEXA|PHOENiX|PiRAMiDHEAD|playBD|playWEB|PmP|PTer|QOQ|RAWR|ROCCaT|SA89|SbR|SiC|SiCFoI|SiGMA|SLiGNOME|SMURF|SURFINBIRD|SwAgLaNdEr|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|VietHD|WiLDCAT|XEBEC|XEPA|ZoroSenpai|ZQ)\\b"
       },
       {
         name: "Combined Remux Tiers",
@@ -86,7 +86,7 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "Combined WEB Tiers",
-        value: "\\b(-Arid\\b|-sam\\b|-smol\\b|-SoM\\b|\\[Arid\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(FLE)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|3cTWeB|4KBEC|ABBIE|AJP69|APEX|BLOOM|BLUTONiUM|BTW|BYNDR|CasStudio|CEBEX|Chotab|Cinefeel|CiT|CMRG|Coo7|CRFW|CRUD|CtrlHD|dB|DEEP|Dooky|DRACULA|END|ETHiCS|FC|Flights|FLUX|GNOME|GNOMiSSiON|HHWEB|HONE|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|LAZY|MiU|monkee|MZABI|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|playWEB|PSiG|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiGMA|SLiGNOME|SMURF|SPiRiT|SwAgLaNdEr|T4H|T6D|TEPES|TheFarm|TOMMY|TVSmash|ViSiON|ViSUM|WELP|XEBEC|XEPA|ZoroSenpai)\\b"
+        value: "\\b(-Arid\\b|-sam\\b|-smol\\b|-SoM\\b|\\[Arid\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(FLE)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|3cTWeB|4KBEC|ABBIE|AJP69|APEX|BLOOM|BLUTONiUM|BTW|BYNDR|CasStudio|CEBEX|Chotab|Cinefeel|CiT|CMRG|Coo7|CRFW|CRUD|CtrlHD|dB|DEEP|Dooky|DRACULA|END|ETHiCS|FC|Flights|FLUX|GNOME|GNOMiSSiON|HHWEB|HONE|iJP|iKA|iT00NZ|JETIX|KHN|KiMCHI|KiNGS|Kitsune|LAZY|MADSKY|MiU|monkee|MZABI|NINJACENTRAL|NOSiViD|NPMS|NTb|NTG|NYH|orbitron|PAXA|PEXA|PHOENiX|playWEB|PSiG|QOQ|RAWR|ROCCaT|RTFM|RTN|SA89|SbR|SDCC|SiC|SiGMA|SLiGNOME|SMURF|SPiRiT|SwAgLaNdEr|T4H|T6D|TEPES|TheFarm|TOMMY|TVSmash|ViSiON|ViSUM|WELP|XEBEC|XEPA|ZoroSenpai)\\b"
       },
       {
         name: "Remux Tier 01",
@@ -106,7 +106,7 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "WEB Tier 01",
-        value: "\\b(ABBIE|AJP69|APEX|BLUTONiUM|BYNDR|CMRG|CRFW|CRUD|FLUX|GNOME|HONE|KiNGS|Kitsune|NOSiViD|NTb|NTG|PAXA|PEXA|RAWR|SiC|TEPES|TheFarm|XEPA|ZoroSenpai)\\b"
+        value: "\\b(ABBIE|AJP69|APEX|BLUTONiUM|BYNDR|CMRG|CRFW|CRUD|FLUX|GNOME|HONE|KiNGS|Kitsune|MADSKY|NOSiViD|NTb|NTG|PAXA|PEXA|RAWR|SiC|TEPES|TheFarm|XEPA|ZoroSenpai)\\b"
       },
       {
         name: "WEB Tier 02",

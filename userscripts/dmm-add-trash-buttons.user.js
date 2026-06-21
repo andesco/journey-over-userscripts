@@ -5,7 +5,7 @@
 // @author        Journey Over
 // @license       MIT
 // @match         *://debridmediamanager.com/*
-// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@ec3ffa07c25cc8e5a5609232f2cd13944169bdb7/libs/dmm/button-data.min.js
+// @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@5ab3241be8887f2dd5c935d1881a4a33b38795dc/libs/dmm/button-data.min.js
 // @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@5f9302ebad37ae0ff9c0493df9cdd3ef4d7262e4/libs/utils/utils.min.js
 // @require       https://cdn.jsdelivr.net/gh/andesco/journey-over-userscripts@5f9302ebad37ae0ff9c0493df9cdd3ef4d7262e4/libs/metadata/armhaglund/armhaglund.min.js
 // @grant         GM_getValue

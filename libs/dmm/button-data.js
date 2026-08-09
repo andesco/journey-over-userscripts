@@ -4,7 +4,7 @@ window.DMM_BUTTON_DATA = [
     buttonData: [
       {
         name: "Highest Tier Releases",
-        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|3L|ABBIE|AJP69|APEX|BBQ|BiZKiT|BLURANiUM|BLUTONiUM|BMF|BYNDR|c0kE|CasStudio|Chotab|CiNEPHiLES|CMRG|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|decibeL|DON|EbP|EDPH|FLUX|FraMeSToR|Geek|GNOME|HONE|KiNGS|Kitsune|LolHD|MADSKY|monkee|NCmt|NOSiViD|NTb|NTG|PAXA|PEXA|PiRAMiDHEAD|PmP|PTer|QOQ|RAWR|RTN|SiC|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|VietHD|ViSUM|WiLDCAT|XEPA|ZoroSenpai|ZQ)\\b"
+        value: "\\b(-Arid\\b|-Moxie\\b|-sam\\b|-smol\\b|-SoM\\b|\\[Arid\\]|\\[Moxie\\]|\\[sam\\]|\\[smol\\]|\\[SoM\\]|\\[Vodes\\]|(?<!Not)-Vodes\\b|\\b(Arg0)\\b|\\b(Baws)\\b|\\b(DemiHuman)\\b|\\b(FLE)\\b|\\b(Flugel)\\b|\\b(LostYears)\\b|\\b(LYS1TH3A)\\b|\\b(McBalls)\\b|\\b(SCY)\\b|\\b(Setsugen)\\b|\\b(Z4ST1N)\\b|\\b(ZeroBuild)\\b|3L|ABBIE|AJP69|APEX|ATELiER|BBQ|BiZKiT|BLURANiUM|BLUTONiUM|BMF|BYNDR|c0kE|CasStudio|Chotab|CiNEPHiLES|CMRG|CRFW|CRiSC|CRUD|CtrlHD|D-Z0N3|Dariush|decibeL|DON|EbP|EDPH|FLUX|FraMeSToR|Geek|GNOME|HONE|KiNGS|Kitsune|LolHD|MADSKY|monkee|NCmt|NOSiViD|NTb|NTG|PAXA|PEXA|PiRAMiDHEAD|PmP|PTer|QOQ|RAWR|RTN|SiC|T6D|TayTO|TDD|TEPES|TheFarm|TnP|TOMMY|VietHD|ViSUM|WiLDCAT|XEPA|ZoroSenpai|ZQ)\\b"
       },
       {
         name: "All Trash Recommended",
@@ -90,11 +90,11 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "Remux Tier 01",
-        value: "\\b(3L|BiZKiT|BLURANiUM|BMF|CiNEPHiLES|FraMeSToR|PiRAMiDHEAD|PmP|WiLDCAT|ZQ)\\b"
+        value: "\\b(3L|ATELiER|BiZKiT|BLURANiUM|BMF|CiNEPHiLES|FraMeSToR|PiRAMiDHEAD|PmP|WiLDCAT|ZQ)\\b"
       },
       {
         name: "Remux Tier 02",
-        value: "\\b(ATELiER|NCmt|playBD|SiCFoI|SURFINBIRD|TEPES)\\b"
+        value: "\\b(NCmt|playBD|SiCFoI|SURFINBIRD|TEPES)\\b"
       },
       {
         name: "HD Bluray Tier 01",

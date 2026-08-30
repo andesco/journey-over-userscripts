@@ -98,11 +98,11 @@ window.DMM_BUTTON_DATA = [
       },
       {
         name: "HD Bluray Tier 01",
-        value: "\\b(BBQ|BMF|c0kE|Chotab|CRiSC|CtrlHD|D-Z0N3|Dariush|decibeL|DON|EbP|EDPH|Geek|LolHD|NCmt|PTer|TayTO|TDD|TnP|VietHD|ZoroSenpai|ZQ)\\b"
+        value: "\\b(ATELiER|BBQ|BMF|c0kE|Chotab|CRiSC|CtrlHD|D-Z0N3|Dariush|decibeL|DON|EbP|EDPH|Geek|LolHD|NCmt|PTer|TayTO|TDD|TnP|VietHD|ZoroSenpai|ZQ)\\b"
       },
       {
         name: "HD Bluray Tier 02",
-        value: "\\b(ATELiER|EA|HiDt|HiSD|iFT|NTb|QOQ|SA89|sbR)\\b"
+        value: "\\b(EA|HiDt|HiSD|iFT|NTb|QOQ|SA89|sbR)\\b"
       },
       {
         name: "WEB Tier 01",
